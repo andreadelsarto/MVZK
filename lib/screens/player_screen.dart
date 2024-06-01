@@ -5,6 +5,8 @@ import 'package:audiotagger/models/tag.dart';
 import 'dart:math';
 import 'dart:typed_data';
 
+List<Map<String, dynamic>> favoriteSongs = [];
+
 class PlayerScreen extends StatefulWidget {
   final List<Map<String, dynamic>> audioFiles;
   final int initialIndex;
@@ -126,6 +128,19 @@ class _PlayerScreenState extends State<PlayerScreen> {
     }
   }
 
+  void _toggleFavorite() {
+    final currentSong = widget.audioFiles[_currentIndex];
+    if (favoriteSongs.any((song) => song['data'] == currentSong['data'])) {
+      setState(() {
+        favoriteSongs.removeWhere((song) => song['data'] == currentSong['data']);
+      });
+    } else {
+      setState(() {
+        favoriteSongs.add(currentSong);
+      });
+    }
+  }
+
   @override
   void dispose() {
     _audioPlayer.dispose();
@@ -143,6 +158,8 @@ class _PlayerScreenState extends State<PlayerScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final backgroundColor = const Color(0xFFD7D8FF); // Colore di sfondo come nello screenshot
+    final currentSong = widget.audioFiles[_currentIndex];
+    final isFavorite = favoriteSongs.any((song) => song['data'] == currentSong['data']);
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -163,7 +180,7 @@ class _PlayerScreenState extends State<PlayerScreen> {
               style: TextStyle(fontSize: 14, color: Colors.grey),
             ),
             Text(
-              widget.audioFiles[_currentIndex]['album'] ?? 'Unknown Album',
+              currentSong['album'] ?? 'Unknown Album',
               style: const TextStyle(fontSize: 18, color: Colors.black),
             ),
           ],
@@ -203,11 +220,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    widget.audioFiles[_currentIndex]['title'] ?? 'Unknown Title',
+                    currentSong['title'] ?? 'Unknown Title',
                     style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black),
                   ),
                   Text(
-                    widget.audioFiles[_currentIndex]['artist'] ?? 'Unknown Artist',
+                    currentSong['artist'] ?? 'Unknown Artist',
                     style: const TextStyle(fontSize: 18, color: Colors.grey),
                   ),
                 ],
@@ -287,10 +304,11 @@ class _PlayerScreenState extends State<PlayerScreen> {
                 ),
                 const SizedBox(height: 20),
                 IconButton(
-                  icon: const Icon(Icons.favorite_border, color: Colors.black),
-                  onPressed: () {
-                    // Favorite action
-                  },
+                  icon: Icon(
+                    isFavorite ? Icons.favorite : Icons.favorite_border,
+                    color: Colors.black,
+                  ),
+                  onPressed: _toggleFavorite,
                 ),
                 const SizedBox(height: 20),
               ],

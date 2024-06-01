@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
 import 'player_screen.dart';
+import 'favorites_screen.dart'; // Importa la nuova schermata dei preferiti
 
 class SongListScreen extends StatefulWidget {
   final String claim;
@@ -112,7 +113,10 @@ class _SongListScreenState extends State<SongListScreen> {
           IconButton(
             icon: const Icon(Icons.favorite_border, color: Colors.black),
             onPressed: () {
-              // Azione per il pulsante preferiti
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => FavoritesScreen()), // Naviga alla schermata dei preferiti
+              );
             },
           ),
         ],
