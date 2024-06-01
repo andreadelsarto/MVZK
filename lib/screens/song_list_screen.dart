@@ -96,7 +96,7 @@ class _SongListScreenState extends State<SongListScreen> {
           ),
           style: TextStyle(color: Colors.black, fontSize: 16.0),
         )
-            : Text('MVZK ${widget.claim}'),
+            : null,
         actions: [
           IconButton(
             icon: Icon(_isSearching ? Icons.close : Icons.search, color: Colors.black),
