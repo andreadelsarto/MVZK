@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'player_screen.dart';
 
 class SongListScreen extends StatefulWidget {
-  const SongListScreen({super.key});
+  final String claim;
+
+  const SongListScreen({super.key, required this.claim});
 
   @override
   _SongListScreenState createState() => _SongListScreenState();
@@ -12,11 +14,22 @@ class SongListScreen extends StatefulWidget {
 
 class _SongListScreenState extends State<SongListScreen> {
   List<Map<String, dynamic>> _songs = [];
+  List<Map<String, dynamic>> _filteredSongs = [];
+  bool _isSearching = false;
+  TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _requestPermission();
+    _searchController.addListener(_filterSongs);
+  }
+
+  @override
+  void dispose() {
+    _searchController.removeListener(_filterSongs);
+    _searchController.dispose();
+    super.dispose();
   }
 
   Future<void> _requestPermission() async {
@@ -42,10 +55,21 @@ class _SongListScreenState extends State<SongListScreen> {
       setState(() {
         _songs = List<Map<String, dynamic>>.from(
             songs.map((item) => Map<String, String>.from(item)));
+        _filteredSongs = _songs;
       });
     } on PlatformException catch (e) {
       print("Failed to get songs: '${e.message}'.");
     }
+  }
+
+  void _filterSongs() {
+    String query = _searchController.text.toLowerCase();
+    setState(() {
+      _filteredSongs = _songs.where((song) {
+        return song['title']!.toLowerCase().contains(query) ||
+            song['artist']!.toLowerCase().contains(query);
+      }).toList();
+    });
   }
 
   @override
@@ -61,11 +85,28 @@ class _SongListScreenState extends State<SongListScreen> {
             // Azione per il pulsante profilo
           },
         ),
+        title: _isSearching
+            ? TextField(
+          controller: _searchController,
+          decoration: InputDecoration(
+            hintText: 'Search...',
+            hintStyle: TextStyle(color: Colors.black),
+            border: InputBorder.none,
+          ),
+          style: TextStyle(color: Colors.black, fontSize: 16.0),
+        )
+            : Text('MVZK ${widget.claim}'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.search, color: Colors.black),
+            icon: Icon(_isSearching ? Icons.close : Icons.search, color: Colors.black),
             onPressed: () {
-              // Azione per il pulsante di ricerca
+              setState(() {
+                _isSearching = !_isSearching;
+                if (!_isSearching) {
+                  _filteredSongs = _songs;
+                  _searchController.clear();
+                }
+              });
             },
           ),
           IconButton(
@@ -83,7 +124,7 @@ class _SongListScreenState extends State<SongListScreen> {
             pinned: true,
             expandedHeight: 200.0,
             flexibleSpace: FlexibleSpaceBar(
-              title: const Text('MVZK to the Beats'),
+              title: Text('MVZK ${widget.claim}'),
               titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
               centerTitle: false,
             ),
@@ -91,8 +132,8 @@ class _SongListScreenState extends State<SongListScreen> {
           SliverList(
             delegate: SliverChildBuilderDelegate(
                   (BuildContext context, int index) {
-                if (index >= _songs.length) return null;
-                final song = _songs[index];
+                if (index >= _filteredSongs.length) return null;
+                final song = _filteredSongs[index];
                 return ListTile(
                   title: Text(song['title'] ?? 'Unknown Title'),
                   subtitle: Text(song['artist'] ?? 'Unknown Artist'),
@@ -101,7 +142,7 @@ class _SongListScreenState extends State<SongListScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => PlayerScreen(
-                          audioFiles: _songs,
+                          audioFiles: _filteredSongs,
                           initialIndex: index,
                         ),
                       ),
@@ -109,7 +150,7 @@ class _SongListScreenState extends State<SongListScreen> {
                   },
                 );
               },
-              childCount: _songs.length,
+              childCount: _filteredSongs.length,
             ),
           ),
         ],

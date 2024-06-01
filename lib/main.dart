@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mzvk/screens/splash_screen.dart';
 import 'screens/song_list_screen.dart';
 import 'theme.dart';
 
@@ -15,7 +16,7 @@ class MyApp extends StatelessWidget {
       title: 'MVZK',
       theme: AppThemes.lightTheme,
       darkTheme: AppThemes.darkTheme,
-      home: const SongListScreen(),
+      home: const SplashScreen(),
     );
   }
 }
