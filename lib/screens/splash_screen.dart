@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import 'song_list_screen.dart';
+import 'package:just_audio/just_audio.dart';
 
 class SplashScreen extends StatefulWidget {
-  const SplashScreen({super.key});
+  final AudioPlayer audioPlayer;
+
+  const SplashScreen({super.key, required this.audioPlayer});
 
   @override
   _SplashScreenState createState() => _SplashScreenState();
@@ -47,7 +50,7 @@ class _SplashScreenState extends State<SplashScreen> {
     await Future.delayed(const Duration(seconds: 3), () {});
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => SongListScreen(claim: claim)),
+      MaterialPageRoute(builder: (context) => SongListScreen(claim: claim, audioPlayer: widget.audioPlayer)),
     );
   }
 

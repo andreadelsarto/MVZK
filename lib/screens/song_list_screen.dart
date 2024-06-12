@@ -2,12 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter/services.dart';
 import 'player_screen.dart';
-import 'favorites_screen.dart'; // Importa la nuova schermata dei preferiti
+import 'favorites_screen.dart';
+import 'image_service.dart';
+import 'package:just_audio/just_audio.dart';
 
 class SongListScreen extends StatefulWidget {
   final String claim;
+  final AudioPlayer audioPlayer;
+  final Uint8List? blurredBackgroundImage;
 
-  const SongListScreen({super.key, required this.claim});
+  const SongListScreen({super.key, required this.claim, required this.audioPlayer, this.blurredBackgroundImage});
 
   @override
   _SongListScreenState createState() => _SongListScreenState();
@@ -115,47 +119,60 @@ class _SongListScreenState extends State<SongListScreen> {
             onPressed: () {
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => FavoritesScreen()), // Naviga alla schermata dei preferiti
+                MaterialPageRoute(
+                    builder: (context) => FavoritesScreen(audioPlayer: widget.audioPlayer)), // Naviga alla schermata dei preferiti
               );
             },
           ),
         ],
       ),
-      body: CustomScrollView(
-        slivers: <Widget>[
-          SliverAppBar(
-            backgroundColor: const Color(0xFF2ECC71),
-            pinned: true,
-            expandedHeight: 200.0,
-            flexibleSpace: FlexibleSpaceBar(
-              title: Text('MVZK ${widget.claim}'),
-              titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
-              centerTitle: false,
+      body: Stack(
+        children: [
+          if (widget.blurredBackgroundImage != null)
+            Image.memory(
+              widget.blurredBackgroundImage!,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: double.infinity,
             ),
-          ),
-          SliverList(
-            delegate: SliverChildBuilderDelegate(
-                  (BuildContext context, int index) {
-                if (index >= _filteredSongs.length) return null;
-                final song = _filteredSongs[index];
-                return ListTile(
-                  title: Text(song['title'] ?? 'Unknown Title'),
-                  subtitle: Text(song['artist'] ?? 'Unknown Artist'),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => PlayerScreen(
-                          audioFiles: _filteredSongs,
-                          initialIndex: index,
-                        ),
-                      ),
+          CustomScrollView(
+            slivers: <Widget>[
+              SliverAppBar(
+                backgroundColor: const Color(0xFF2ECC71),
+                pinned: true,
+                expandedHeight: 200.0,
+                flexibleSpace: FlexibleSpaceBar(
+                  title: Text('MVZK ${widget.claim}'),
+                  titlePadding: const EdgeInsets.only(left: 16, bottom: 16),
+                  centerTitle: false,
+                ),
+              ),
+              SliverList(
+                delegate: SliverChildBuilderDelegate(
+                      (BuildContext context, int index) {
+                    if (index >= _filteredSongs.length) return null;
+                    final song = _filteredSongs[index];
+                    return ListTile(
+                      title: Text(song['title'] ?? 'Unknown Title'),
+                      subtitle: Text(song['artist'] ?? 'Unknown Artist'),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => PlayerScreen(
+                              audioFiles: _filteredSongs,
+                              initialIndex: index,
+                              audioPlayer: widget.audioPlayer,
+                            ),
+                          ),
+                        );
+                      },
                     );
                   },
-                );
-              },
-              childCount: _filteredSongs.length,
-            ),
+                  childCount: _filteredSongs.length,
+                ),
+              ),
+            ],
           ),
         ],
       ),

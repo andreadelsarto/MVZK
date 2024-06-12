@@ -1,7 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
 import 'player_screen.dart';
 
 class FavoritesScreen extends StatelessWidget {
+  final AudioPlayer audioPlayer;
+
+  FavoritesScreen({required this.audioPlayer});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -31,6 +36,7 @@ class FavoritesScreen extends StatelessWidget {
                   builder: (context) => PlayerScreen(
                     audioFiles: favoriteSongs,
                     initialIndex: index,
+                    audioPlayer: audioPlayer,
                   ),
                 ),
               );
