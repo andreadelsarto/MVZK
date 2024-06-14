@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'player_screen.dart';
+import 'mini_player.dart';
 
 class SongListScreen extends StatefulWidget {
   final AudioPlayer audioPlayer;
@@ -23,8 +24,6 @@ class SongListScreen extends StatefulWidget {
 class _SongListScreenState extends State<SongListScreen> {
   final OnAudioQuery _audioQuery = OnAudioQuery();
   List<SongModel> _songs = [];
-  List<ArtistModel> _artists = [];
-  List<AlbumModel> _albums = [];
   bool _isLibraryView = true;
   bool _isArtistView = false;
   bool _isAlbumView = false;
@@ -32,36 +31,16 @@ class _SongListScreenState extends State<SongListScreen> {
   @override
   void initState() {
     super.initState();
-    _checkPermissions();
-  }
-
-  void _checkPermissions() async {
-    if (await _audioQuery.permissionsStatus() == false) {
-      await _audioQuery.permissionsRequest();
-    }
     _fetchSongs();
-    _fetchArtists();
-    _fetchAlbums();
   }
 
   void _fetchSongs() async {
+    if (await _audioQuery.permissionsStatus() == false) {
+      await _audioQuery.permissionsRequest();
+    }
     List<SongModel> songs = await _audioQuery.querySongs();
     setState(() {
       _songs = songs;
-    });
-  }
-
-  void _fetchArtists() async {
-    List<ArtistModel> artists = await _audioQuery.queryArtists();
-    setState(() {
-      _artists = artists;
-    });
-  }
-
-  void _fetchAlbums() async {
-    List<AlbumModel> albums = await _audioQuery.queryAlbums();
-    setState(() {
-      _albums = albums;
     });
   }
 
@@ -176,6 +155,8 @@ class _SongListScreenState extends State<SongListScreen> {
                 ? _buildArtistList()
                 : _buildAlbumList(),
           ),
+          if (_songs.isNotEmpty)
+            MiniPlayer(audioPlayer: widget.audioPlayer, audioFiles: _songs),
         ],
       ),
     );
@@ -207,33 +188,12 @@ class _SongListScreenState extends State<SongListScreen> {
   }
 
   Widget _buildArtistList() {
-    return ListView.builder(
-      itemCount: _artists.length,
-      itemBuilder: (context, index) {
-        final artist = _artists[index];
-        return ListTile(
-          title: Text(artist.artist),
-          onTap: () {
-            // Handle artist click
-          },
-        );
-      },
-    );
+    // Implement artist list view
+    return const Center(child: Text("Artist View"));
   }
 
   Widget _buildAlbumList() {
-    return ListView.builder(
-      itemCount: _albums.length,
-      itemBuilder: (context, index) {
-        final album = _albums[index];
-        return ListTile(
-          title: Text(album.album),
-          subtitle: Text(album.artist ?? 'Unknown Artist'),
-          onTap: () {
-            // Handle album click
-          },
-        );
-      },
-    );
+    // Implement album list view
+    return const Center(child: Text("Album View"));
   }
 }

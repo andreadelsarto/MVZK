@@ -115,6 +115,12 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     );
   }
 
+  Future<void> _saveCurrentIndex(int index) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('lastPlayedIndex', index);
+  }
+
+
   void _playCurrent() async {
     await widget.audioPlayer.setAudioSource(
       ConcatenatingAudioSource(
@@ -127,8 +133,11 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     _fetchAlbumArt(widget.audioFiles[_currentIndex].data);
     await _fetchArtistImage(widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist');
     widget.audioPlayer.play();
-    setState(() {});
+    setState(() {
+      _saveCurrentIndex(_currentIndex); // Save the current index
+    });
   }
+
 
   Future<void> _fetchArtistImage(String artist) async {
     print('Fetching artist image for: $artist');

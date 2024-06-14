@@ -18,6 +18,8 @@ class MiniPlayer extends StatefulWidget {
 class _MiniPlayerState extends State<MiniPlayer> {
   late int _currentIndex;
   bool _isPlaying = false;
+  Duration _currentPosition = Duration.zero;
+  Duration _totalDuration = Duration.zero;
   late StreamSubscription<Duration> _positionSubscription;
   late StreamSubscription<PlayerState> _playerStateSubscription;
 
@@ -26,11 +28,18 @@ class _MiniPlayerState extends State<MiniPlayer> {
     super.initState();
     _loadLastPlayedState();
     _positionSubscription = widget.audioPlayer.positionStream.listen((position) {
-      setState(() {});
+      setState(() {
+        _currentPosition = position;
+      });
     });
     _playerStateSubscription = widget.audioPlayer.playerStateStream.listen((state) {
       setState(() {
         _isPlaying = state.playing;
+      });
+    });
+    widget.audioPlayer.durationStream.listen((duration) {
+      setState(() {
+        _totalDuration = duration ?? Duration.zero;
       });
     });
   }
@@ -60,6 +69,9 @@ class _MiniPlayerState extends State<MiniPlayer> {
   @override
   Widget build(BuildContext context) {
     final currentSong = widget.audioFiles[_currentIndex];
+    final progress = _totalDuration.inMilliseconds == 0
+        ? 0.0
+        : _currentPosition.inMilliseconds / _totalDuration.inMilliseconds;
 
     return GestureDetector(
       onTap: () {
@@ -75,7 +87,17 @@ class _MiniPlayerState extends State<MiniPlayer> {
         );
       },
       child: Container(
-        color: Colors.black54,
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              Colors.blue.withOpacity(progress),
+              Colors.blue.withOpacity(0.2),
+            ],
+            stops: [progress, progress],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+        ),
         child: Row(
           children: [
             IconButton(
