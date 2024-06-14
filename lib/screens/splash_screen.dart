@@ -61,26 +61,35 @@ class _SplashScreenState extends State<SplashScreen> {
     return Scaffold(
       backgroundColor: theme.colorScheme.background,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Stack(
           children: [
-            Text(
-              claim,
-              style: theme.textTheme.displayLarge?.copyWith(
-                fontSize: 36, // Aumenta la dimensione del testo qui
-                foreground: Paint()
-                  ..shader = LinearGradient(
-                    colors: <Color>[Colors.red, Colors.orange, Colors.yellow],
-                  ).createShader(Rect.fromLTWH(0.0, 0.0, 200.0, 70.0)),
+            Align(
+              alignment: Alignment.center,
+              child: Text(
+                claim,
+                style: theme.textTheme.displayLarge?.copyWith(
+                  fontSize: 64, // Aumenta la dimensione del testo qui
+                  foreground: Paint()
+                    ..shader = LinearGradient(
+                      colors: [theme.colorScheme.primary, theme.colorScheme.secondary],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ).createShader(Rect.fromLTWH(0.0, 0.0, 200.0, 70.0)),
+                ),
+                textAlign: TextAlign.center,
               ),
-              textAlign: TextAlign.center,
             ),
-            SizedBox(height: 20),
-            Text(
-              'MVZK',
-              style: theme.textTheme.displayMedium?.copyWith(
-                fontSize: 18, // Dimensione del testo per il logo
-                color: theme.colorScheme.onBackground,
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: Padding(
+                padding: const EdgeInsets.only(bottom: 30.0),
+                child: Text(
+                  'MVZK',
+                  style: theme.textTheme.displayMedium?.copyWith(
+                    fontSize: 24, // Dimensione del testo per il logo
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
               ),
             ),
           ],
