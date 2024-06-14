@@ -61,5 +61,8 @@ configurations.all {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
-    // Assicurati che tutte le altre dipendenze siano aggiornate e non ci siano conflitti
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.5.0'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.5.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.5.0'
+    // Aggiungi altre dipendenze qui e assicurati che siano compatibili
 }

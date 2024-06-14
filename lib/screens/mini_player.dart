@@ -2,11 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:on_audio_query/on_audio_query.dart';
 import 'player_screen.dart';
 
 class MiniPlayer extends StatefulWidget {
   final AudioPlayer audioPlayer;
-  final List<Map<String, dynamic>> audioFiles;
+  final List<SongModel> audioFiles;
 
   const MiniPlayer({super.key, required this.audioPlayer, required this.audioFiles});
 
@@ -84,13 +85,13 @@ class _MiniPlayerState extends State<MiniPlayer> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(currentSong['title'] ?? 'Unknown Title', style: TextStyle(color: Colors.white)),
-                Text(currentSong['artist'] ?? 'Unknown Artist', style: TextStyle(color: Colors.white)),
+                Text(currentSong.title, style: const TextStyle(color: Colors.white)),
+                Text(currentSong.artist ?? 'Unknown Artist', style: const TextStyle(color: Colors.white)),
               ],
             ),
-            Spacer(),
+            const Spacer(),
             IconButton(
-              icon: Icon(Icons.skip_next, color: Colors.white),
+              icon: const Icon(Icons.skip_next, color: Colors.white),
               onPressed: () {
                 if (_currentIndex < widget.audioFiles.length - 1) {
                   setState(() {

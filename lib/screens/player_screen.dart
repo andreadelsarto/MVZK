@@ -4,15 +4,17 @@ import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:audiotagger/audiotagger.dart';
 import 'package:audiotagger/models/tag.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
+import 'package:on_audio_query/on_audio_query.dart';
 import 'image_service.dart';
 import 'artist_info_screen.dart';
 import 'song_list_screen.dart';
 
-List<Map<String, dynamic>> favoriteSongs = [];
+List<SongModel> favoriteSongs = [];
 
 class PlayerScreen extends StatefulWidget {
-  final List<Map<String, dynamic>> audioFiles;
+  final List<SongModel> audioFiles;
   final int initialIndex;
   final AudioPlayer audioPlayer;
 
@@ -114,9 +116,16 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
   }
 
   void _playCurrent() async {
-    await widget.audioPlayer.setFilePath(widget.audioFiles[_currentIndex]['data']);
-    _fetchAlbumArt(widget.audioFiles[_currentIndex]['data']);
-    await _fetchArtistImage(widget.audioFiles[_currentIndex]['artist']);
+    await widget.audioPlayer.setAudioSource(
+      ConcatenatingAudioSource(
+        children: widget.audioFiles.map((song) {
+          return AudioSource.uri(Uri.parse(song.uri!));
+        }).toList(),
+      ),
+      initialIndex: _currentIndex,
+    );
+    _fetchAlbumArt(widget.audioFiles[_currentIndex].data);
+    await _fetchArtistImage(widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist');
     widget.audioPlayer.play();
     setState(() {});
   }
@@ -208,9 +217,9 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
 
   void _toggleFavorite() {
     final currentSong = widget.audioFiles[_currentIndex];
-    if (favoriteSongs.any((song) => song['data'] == currentSong['data'])) {
+    if (favoriteSongs.any((song) => song.data == currentSong.data)) {
       setState(() {
-        favoriteSongs.removeWhere((song) => song['data'] == currentSong['data']);
+        favoriteSongs.removeWhere((song) => song.data == currentSong.data);
       });
     } else {
       setState(() {
@@ -262,7 +271,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ArtistInfoScreen(artistName: widget.audioFiles[_currentIndex]['artist'] ?? 'Unknown Artist'),
+                      builder: (context) => ArtistInfoScreen(artistName: widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist'),
                     ),
                   );
                 },
@@ -308,7 +317,8 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     final theme = Theme.of(context);
     final backgroundColor = const Color(0xFF1C1C1C); // Colore di sfondo scuro
     final currentSong = widget.audioFiles[_currentIndex];
-    final isFavorite = favoriteSongs.any((song) => song['data'] == currentSong['data']);
+    final isFavorite = favoriteSongs.any((song) => song.data == currentSong.data);
+
 
     return Scaffold(
       backgroundColor: backgroundColor,
@@ -323,329 +333,123 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         },
         child: Stack(
           children: [
-            if (_artistImage != null && _blurredArtistImage != null)
-              AnimatedSwitcher(
-                duration: Duration(milliseconds: 300),
-                child: _isMinimal
-                    ? Image.memory(
+            if (_blurredArtistImage != null)
+              Positioned.fill(
+                child: Image.memory(
                   _blurredArtistImage!,
-                  key: ValueKey('blurred'),
                   fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
-                )
-                    : Image.memory(
-                  _artistImage!,
-                  key: ValueKey('original'),
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  height: double.infinity,
+                  color: Colors.black45,
+                  colorBlendMode: BlendMode.darken,
                 ),
               ),
-            SafeArea(
-              child: Column(
-                children: [
-                  if (!_isMinimal)
-                    AppBar(
-                      backgroundColor: Colors.transparent,
-                      elevation: 0,
-                      leading: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => SongListScreen(
-                                claim: 'Your Claim',
-                                audioPlayer: widget.audioPlayer,
-                                blurredBackgroundImage: _blurredArtistImage,
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      centerTitle: true,
-                      title: Column(
-                        children: [
-                          const Text(
-                            'NOW PLAYING FROM',
-                            style: TextStyle(fontSize: 14, color: Colors.grey),
-                          ),
-                          Text(
-                            currentSong['album'] ?? 'Unknown Album',
-                            style: const TextStyle(fontSize: 18, color: Colors.white),
-                          ),
-                        ],
-                      ),
-                      actions: [
-                        IconButton(
-                          icon: const Icon(Icons.more_vert, color: Colors.white),
-                          onPressed: () {
-                            _showBottomSheet(context);
-                          },
-                        ),
-                      ],
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (!_isMinimal)
+                  Column(
+                    children: [
+                      if (_artistImage != null)
+                        Image.memory(_artistImage!, height: 250, fit: BoxFit.cover),
+                      Text(currentSong.title, style: theme.textTheme.headlineSmall?.copyWith(color: Colors.white)),
+                      Text(currentSong.artist ?? 'Unknown Artist', style: theme.textTheme.titleMedium?.copyWith(color: Colors.white70)),
+                    ],
+                  ),
+                Slider(
+                  activeColor: Colors.white,
+                  inactiveColor: Colors.white38,
+                  value: _currentPosition.inSeconds.toDouble(),
+                  min: 0.0,
+                  max: _totalDuration.inSeconds.toDouble(),
+                  onChanged: (value) {
+                    setState(() {
+                      widget.audioPlayer.seek(Duration(seconds: value.toInt()));
+                    });
+                  },
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(_formatDuration(_currentPosition), style: TextStyle(color: Colors.white)),
+                      Text(_formatDuration(_totalDuration), style: TextStyle(color: Colors.white)),
+                    ],
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.skip_previous, color: Colors.white),
+                      onPressed: _playPrevious,
                     ),
-                  Expanded(
-                    child: Stack(
+                    IconButton(
+                      icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 36),
+                      onPressed: _togglePlayPause,
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.skip_next, color: Colors.white),
+                      onPressed: _playNext,
+                    ),
+                  ],
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      icon: Icon(_isShuffle ? Icons.shuffle_on : Icons.shuffle, color: Colors.white),
+                      onPressed: _toggleShuffle,
+                    ),
+                    IconButton(
+                      icon: Icon(_loopMode == LoopMode.one ? Icons.repeat_one : (_loopMode == LoopMode.all ? Icons.repeat : Icons.repeat), color: Colors.white),
+                      onPressed: _toggleRepeat,
+                    ),
+                    IconButton(
+                      icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: Colors.white),
+                      onPressed: _toggleFavorite,
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.more_vert, color: Colors.white),
+                      onPressed: () => _showBottomSheet(context),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            if (_isMinimal)
+              SlideTransition(
+                position: _slideAnimation,
+                child: FadeTransition(
+                  opacity: _fadeAnimation,
+                  child: Container(
+                    color: Colors.black54,
+                    child: Row(
                       children: [
-                        if (!_isMinimal)
-                          Center(
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.end,
-                              children: [
-                                Container(
-                                  height: 240,
-                                  width: 240,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.rectangle,
-                                    image: _albumArt != null
-                                        ? DecorationImage(
-                                      image: MemoryImage(_albumArt!),
-                                      fit: BoxFit.cover,
-                                    )
-                                        : null,
-                                    color: Colors.grey[800],
-                                  ),
-                                  child: _albumArt == null
-                                      ? Icon(
-                                    Icons.music_note,
-                                    color: Colors.white,
-                                    size: 64,
-                                  )
-                                      : null,
-                                ),
-                                const SizedBox(height: 20),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        currentSong['title'] ?? 'Unknown Title',
-                                        style: const TextStyle(
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: Colors.white,
-                                          shadows: [
-                                            Shadow(
-                                              blurRadius: 2.0,
-                                              color: Colors.black,
-                                              offset: Offset(1.0, 1.0),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                      Text(
-                                        currentSong['artist'] ?? 'Unknown Artist',
-                                        style: const TextStyle(
-                                          fontSize: 18,
-                                          color: Colors.grey,
-                                          shadows: [
-                                            Shadow(
-                                              blurRadius: 2.0,
-                                              color: Colors.black,
-                                              offset: Offset(1.0, 1.0),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                                  child: Column(
-                                    children: [
-                                      Slider(
-                                        activeColor: Colors.white,
-                                        inactiveColor: Colors.grey,
-                                        value: _currentPosition.inSeconds.toDouble(),
-                                        max: _totalDuration.inSeconds.toDouble(),
-                                        onChanged: (value) {
-                                          setState(() {
-                                            widget.audioPlayer.seek(Duration(seconds: value.toInt()));
-                                          });
-                                        },
-                                      ),
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            _formatDuration(_currentPosition),
-                                            style: const TextStyle(color: Colors.white),
-                                          ),
-                                          Text(
-                                            _formatDuration(_totalDuration),
-                                            style: const TextStyle(color: Colors.white),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 40),
-                              ],
-                            ),
-                          ),
-                        if (_isMinimal)
-                          SlideTransition(
-                            position: _slideAnimation,
-                            child: SafeArea(
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                                child: Column(
-                                  mainAxisAlignment: MainAxisAlignment.end,
-                                  children: [
-                                    Slider(
-                                      activeColor: Colors.white,
-                                      inactiveColor: Colors.grey,
-                                      value: _currentPosition.inSeconds.toDouble(),
-                                      max: _totalDuration.inSeconds.toDouble(),
-                                      onChanged: (value) {
-                                        setState(() {
-                                          widget.audioPlayer.seek(Duration(seconds: value.toInt()));
-                                        });
-                                      },
-                                    ),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          _formatDuration(_currentPosition),
-                                          style: const TextStyle(color: Colors.white),
-                                        ),
-                                        Text(
-                                          _formatDuration(_totalDuration),
-                                          style: const TextStyle(color: Colors.white),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 20),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        Positioned.fill(
-                          child: IgnorePointer(
-                            ignoring: true,
-                            child: AnimatedBuilder(
-                              animation: _animationController,
-                              builder: (context, child) {
-                                return Column(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Align(
-                                      alignment: Alignment.topCenter,
-                                      child: Container(
-                                        margin: EdgeInsets.only(top: _animationController.value * 100),
-                                        child: Opacity(
-                                          opacity: _isMinimal ? 0.5 : 0.1,
-                                          child: Text(
-                                            currentSong['title'] ?? 'Unknown Title',
-                                            style: TextStyle(
-                                              fontSize: 48,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    Align(
-                                      alignment: Alignment.bottomCenter,
-                                      child: Container(
-                                        margin: EdgeInsets.only(bottom: _animationController.value * 100),
-                                        child: Opacity(
-                                          opacity: _isMinimal ? 0.5 : 0.1,
-                                          child: Text(
-                                            currentSong['artist'] ?? 'Unknown Artist',
-                                            style: TextStyle(
-                                              fontSize: 48,
-                                              fontWeight: FontWeight.bold,
-                                              color: Colors.white,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                );
-                              },
-                            ),
-                          ),
+                        IconButton(
+                          icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white),
+                          onPressed: _togglePlayPause,
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(currentSong.title, style: const TextStyle(color: Colors.white)),
+                            Text(currentSong.artist ?? 'Unknown Artist', style: const TextStyle(color: Colors.white)),
+                          ],
+                        ),
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.skip_next, color: Colors.white),
+                          onPressed: _playNext,
                         ),
                       ],
                     ),
                   ),
-                  if (!_isMinimal)
-                    Column(
-                      mainAxisAlignment: MainAxisAlignment.end,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: <Widget>[
-                            IconButton(
-                              icon: Icon(
-                                Icons.shuffle,
-                                color: _isShuffle ? Colors.orange : Colors.white,
-                              ),
-                              onPressed: _toggleShuffle,
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.skip_previous, color: Colors.white),
-                              onPressed: _playPrevious,
-                              iconSize: 64,
-                            ),
-                            CircleAvatar(
-                              radius: 40,
-                              backgroundColor: Colors.white,
-                              child: IconButton(
-                                icon: Icon(
-                                  _isPlaying ? Icons.pause : Icons.play_arrow,
-                                  color: Colors.black,
-                                ),
-                                onPressed: _togglePlayPause,
-                                iconSize: 64,
-                              ),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.skip_next, color: Colors.white),
-                              onPressed: _playNext,
-                              iconSize: 64,
-                            ),
-                            IconButton(
-                              icon: Icon(
-                                _loopMode == LoopMode.off
-                                    ? Icons.repeat
-                                    : _loopMode == LoopMode.one
-                                    ? Icons.repeat_one
-                                    : Icons.repeat,
-                                color: _loopMode != LoopMode.off ? Colors.orange : Colors.white,
-                              ),
-                              onPressed: _toggleRepeat,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        IconButton(
-                          icon: Icon(
-                            isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: Colors.white,
-                          ),
-                          onPressed: _toggleFavorite,
-                        ),
-                        const SizedBox(height: 20),
-                      ],
-                    ),
-                ],
+                ),
               ),
-            ),
           ],
         ),
       ),
     );
   }
 }
+

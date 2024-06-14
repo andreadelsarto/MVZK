@@ -1,12 +1,12 @@
+// ignore_for_file: library_private_types_in_public_api
+
 import 'package:flutter/material.dart';
 import 'dart:math';
-import 'song_list_screen.dart';
+import 'home_screen.dart';
 import 'package:just_audio/just_audio.dart';
 
 class SplashScreen extends StatefulWidget {
-  final AudioPlayer audioPlayer;
-
-  const SplashScreen({super.key, required this.audioPlayer});
+  const SplashScreen({super.key});
 
   @override
   _SplashScreenState createState() => _SplashScreenState();
@@ -14,12 +14,14 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   late String claim;
+  late AudioPlayer audioPlayer;
 
   @override
   void initState() {
     super.initState();
+    audioPlayer = AudioPlayer();
     _setRandomClaim();
-    _navigateToSongList();
+    _navigateToHome();
   }
 
   void _setRandomClaim() {
@@ -41,16 +43,15 @@ class _SplashScreenState extends State<SplashScreen> {
       "The rhythm of life",
       "And let the music play",
       "The world away",
-      // Aggiungi altri claim qui
     ];
     claim = claims[Random().nextInt(claims.length)];
   }
 
-  _navigateToSongList() async {
+  _navigateToHome() async {
     await Future.delayed(const Duration(seconds: 3), () {});
     Navigator.pushReplacement(
       context,
-      MaterialPageRoute(builder: (context) => SongListScreen(claim: claim, audioPlayer: widget.audioPlayer)),
+      MaterialPageRoute(builder: (context) => HomeScreen(audioPlayer: audioPlayer, claim: claim)),
     );
   }
 
@@ -58,24 +59,28 @@ class _SplashScreenState extends State<SplashScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: theme.scaffoldBackgroundColor,
+      backgroundColor: theme.colorScheme.background,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              'MVZK',
-              style: TextStyle(
+              claim,
+              style: theme.textTheme.displayLarge?.copyWith(
                 fontSize: 36, // Aumenta la dimensione del testo qui
-                color: theme.primaryColor,
+                foreground: Paint()
+                  ..shader = LinearGradient(
+                    colors: <Color>[Colors.red, Colors.orange, Colors.yellow],
+                  ).createShader(Rect.fromLTWH(0.0, 0.0, 200.0, 70.0)),
               ),
+              textAlign: TextAlign.center,
             ),
             SizedBox(height: 20),
             Text(
-              claim,
-              style: TextStyle(
-                fontSize: 18, // Dimensione del testo per il claim
-                color: theme.primaryColor,
+              'MVZK',
+              style: theme.textTheme.displayMedium?.copyWith(
+                fontSize: 18, // Dimensione del testo per il logo
+                color: theme.colorScheme.onBackground,
               ),
             ),
           ],
