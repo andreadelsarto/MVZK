@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'song_list_screen.dart';
 import 'package:just_audio/just_audio.dart';
+import 'game_screen.dart';  // Importa la nuova schermata
 
 class HomeScreen extends StatelessWidget {
   final AudioPlayer audioPlayer;
@@ -36,7 +37,9 @@ class HomeScreen extends StatelessWidget {
               _buildMenuItem(context, 'social', Icons.people, () {}),
               _buildMenuItem(context, 'radio', Icons.radio, () {}),
               _buildMenuItem(context, 'marketplace', Icons.store, () {}),
-              _buildMenuItem(context, 'games', Icons.games, () {}),
+              _buildMenuItem(context, 'games', Icons.games, () {
+                Navigator.of(context).push(_createRoute());
+              }),
             ],
           ),
         ),
@@ -65,6 +68,25 @@ class HomeScreen extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  Route _createRoute() {
+    return PageRouteBuilder(
+      pageBuilder: (context, animation, secondaryAnimation) => const GamesScreen(),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        const begin = Offset(1.0, 0.0);
+        const end = Offset.zero;
+        const curve = Curves.ease;
+
+        var tween = Tween(begin: begin, end: end).chain(CurveTween(curve: curve));
+        var offsetAnimation = animation.drive(tween);
+
+        return SlideTransition(
+          position: offsetAnimation,
+          child: child,
+        );
+      },
     );
   }
 }
