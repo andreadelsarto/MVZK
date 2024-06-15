@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'pong_game.dart'; // Importa il gioco Pong
+import 'snake_game.dart';
 
 class GamesScreen extends StatelessWidget {
   const GamesScreen({super.key});
@@ -27,7 +28,7 @@ class GamesScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _buildGameItem(context, 'Pong', PongGame()), // Aggiungi il gioco Pong
-              _buildGameItem(context, 'Game 2', null),
+              _buildGameItem(context, 'Snake', SnakeGame()),
               _buildGameItem(context, 'Game 3', null),
               _buildGameItem(context, 'Game 4', null),
             ],
