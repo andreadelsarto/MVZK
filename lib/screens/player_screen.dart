@@ -122,21 +122,23 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
 
 
   void _playCurrent() async {
-    await widget.audioPlayer.setAudioSource(
-      ConcatenatingAudioSource(
-        children: widget.audioFiles.map((song) {
-          return AudioSource.uri(Uri.parse(song.uri!));
-        }).toList(),
-      ),
-      initialIndex: _currentIndex,
-    );
+    if (widget.audioPlayer.currentIndex != _currentIndex) {
+      await widget.audioPlayer.setAudioSource(
+        ConcatenatingAudioSource(
+          children: widget.audioFiles.map((song) {
+            return AudioSource.uri(Uri.parse(song.uri!));
+          }).toList(),
+        ),
+        initialIndex: _currentIndex,
+      );
+      widget.audioPlayer.play();
+    }
     _fetchAlbumArt(widget.audioFiles[_currentIndex].data);
     await _fetchArtistImage(widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist');
-    widget.audioPlayer.play();
-    setState(() {
-      _saveCurrentIndex(_currentIndex); // Save the current index
-    });
+    setState(() {});
   }
+
+
 
 
   Future<void> _fetchArtistImage(String artist) async {

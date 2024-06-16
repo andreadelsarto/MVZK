@@ -24,14 +24,19 @@ class _MiniPlayerState extends State<MiniPlayer> {
   @override
   void initState() {
     super.initState();
+    _currentIndex = widget.audioPlayer.currentIndex ?? 0;
     _loadLastPlayedState();
     _positionSubscription = widget.audioPlayer.positionStream.listen((position) {
-      setState(() {});
+      if (mounted) {
+        setState(() {});
+      }
     });
     _playerStateSubscription = widget.audioPlayer.playerStateStream.listen((state) {
-      setState(() {
-        _isPlaying = state.playing;
-      });
+      if (mounted) {
+        setState(() {
+          _isPlaying = state.playing;
+        });
+      }
     });
 
     widget.audioPlayer.currentIndexStream.listen((index) {
@@ -74,6 +79,13 @@ class _MiniPlayerState extends State<MiniPlayer> {
   @override
   Widget build(BuildContext context) {
     final currentSong = widget.audioFiles[_currentIndex];
+    final position = widget.audioPlayer.position;
+    final duration = widget.audioPlayer.duration ?? Duration.zero;
+
+    double progress = 0.0;
+    if (duration.inSeconds > 0) {
+      progress = position.inSeconds / duration.inSeconds;
+    }
 
     return GestureDetector(
       onTap: () {
@@ -96,14 +108,25 @@ class _MiniPlayerState extends State<MiniPlayer> {
               icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white),
               onPressed: _togglePlayPause,
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(currentSong.title, style: const TextStyle(color: Colors.white)),
-                Text(currentSong.artist ?? 'Unknown Artist', style: const TextStyle(color: Colors.white)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    currentSong.title.length > 20
+                        ? '${currentSong.title.substring(0, 20)}...'
+                        : currentSong.title,
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                  Text(currentSong.artist ?? 'Unknown Artist', style: const TextStyle(color: Colors.white)),
+                  LinearProgressIndicator(
+                    value: progress.isNaN ? 0.0 : progress,
+                    backgroundColor: Colors.white24,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                ],
+              ),
             ),
-            const Spacer(),
             IconButton(
               icon: const Icon(Icons.skip_next, color: Colors.white),
               onPressed: () {
@@ -111,7 +134,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
                   setState(() {
                     _currentIndex++;
                   });
-                  _togglePlayPause();
+                  widget.audioPlayer.seek(Duration.zero, index: _currentIndex);
                 }
               },
             ),
