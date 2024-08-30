@@ -19,38 +19,30 @@ class MyApp extends StatelessWidget {
       create: (context) => ThemeProvider(),
       child: Consumer<ThemeProvider>(
         builder: (context, themeProvider, child) {
-          return DynamicColorBuilder(
-            builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-              ColorScheme lightColorScheme;
-              ColorScheme darkColorScheme;
-
-              if (lightDynamic != null && darkDynamic != null) {
-                lightColorScheme = lightDynamic.harmonized();
-                darkColorScheme = darkDynamic.harmonized();
-              } else {
-                lightColorScheme = ColorScheme.fromSeed(
-                  seedColor: themeProvider.accentColor,
-                );
-                darkColorScheme = ColorScheme.fromSeed(
-                  seedColor: themeProvider.accentColor,
-                  brightness: Brightness.dark,
-                );
-              }
-
-              return MaterialApp(
-                title: 'MVZK',
-                themeMode: themeProvider.themeMode,
-                theme: ThemeData(
-                  colorScheme: lightColorScheme,
-                  useMaterial3: true,
+          return MaterialApp(
+            title: 'MVZK',
+            themeMode: themeProvider.themeMode,
+            theme: ThemeData(
+              colorScheme: themeProvider.getLightColorScheme(),
+              useMaterial3: true,
+              iconTheme: IconThemeData(color: themeProvider.customAccentColor ?? Colors.blue),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeProvider.customAccentColor ?? Colors.blue,
                 ),
-                darkTheme: ThemeData(
-                  colorScheme: darkColorScheme,
-                  useMaterial3: true,
+              ),
+            ),
+            darkTheme: ThemeData(
+              colorScheme: themeProvider.getDarkColorScheme(),
+              useMaterial3: true,
+              iconTheme: IconThemeData(color: themeProvider.customAccentColor ?? Colors.blue),
+              elevatedButtonTheme: ElevatedButtonThemeData(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: themeProvider.customAccentColor ?? Colors.blue,
                 ),
-                home: const SplashScreen(),
-              );
-            },
+              ),
+            ),
+            home: const SplashScreen(),
           );
         },
       ),

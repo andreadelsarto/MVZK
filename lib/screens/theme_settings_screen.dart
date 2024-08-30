@@ -47,7 +47,7 @@ class ThemeSettingsScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 16),
-            _buildAccentColorOptions(themeProvider),
+            _buildAccentColorOptions(context, themeProvider),
           ],
         ),
       ),
@@ -70,7 +70,7 @@ class ThemeSettingsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAccentColorOptions(ThemeProvider themeProvider) {
+  Widget _buildAccentColorOptions(BuildContext context, ThemeProvider themeProvider) {
     final accentColors = [
       Colors.red,
       Colors.green,
@@ -84,28 +84,47 @@ class ThemeSettingsScreen extends StatelessWidget {
       Colors.lime,
     ];
 
-    return Wrap(
-      spacing: 10.0,
-      runSpacing: 10.0,
-      children: accentColors.map((color) {
-        return GestureDetector(
-          onTap: () {
-            themeProvider.setAccentColor(color); // Applica il colore accento usando il provider
-          },
-          child: Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.rectangle,
-              borderRadius: BorderRadius.circular(12),
-              border: themeProvider.accentColor == color
-                  ? Border.all(color: Colors.white, width: 3)
-                  : null,
+    return Column(
+      children: [
+        RadioListTile<bool>(
+          title: Text(
+            'System',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+              color: Theme.of(context).colorScheme.onBackground,
             ),
           ),
-        );
-      }).toList(),
+          value: true,
+          groupValue: themeProvider.useSystemAccentColor,
+          onChanged: (bool? value) {
+            if (value != null) {
+              themeProvider.setAccentColor(null); // Usa colore accento del sistema
+            }
+          },
+        ),
+        Wrap(
+          spacing: 10.0,
+          runSpacing: 10.0,
+          children: accentColors.map((color) {
+            return GestureDetector(
+              onTap: () {
+                themeProvider.setAccentColor(color); // Applica il colore accento usando il provider
+              },
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: color,
+                  shape: BoxShape.rectangle,
+                  borderRadius: BorderRadius.circular(12),
+                  border: themeProvider.customAccentColor == color && !themeProvider.useSystemAccentColor
+                      ? Border.all(color: Colors.white, width: 3)
+                      : null,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
     );
   }
 }
