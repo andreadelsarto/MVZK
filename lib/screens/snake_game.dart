@@ -1,38 +1,17 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
-import 'package:dynamic_color/dynamic_color.dart';
 
-void main() => runApp(SnakeGame());
+class SnakeGame extends StatefulWidget {
+  final int initialSpeed; // Velocità iniziale basata sul livello selezionato
 
-class SnakeGame extends StatelessWidget {
+  SnakeGame({required this.initialSpeed});
+
   @override
-  Widget build(BuildContext context) {
-    return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        return MaterialApp(
-          title: 'Snake Game',
-          theme: ThemeData(
-            colorScheme: lightDynamic ?? ColorScheme.fromSeed(seedColor: Colors.blue),
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            colorScheme: darkDynamic ?? ColorScheme.fromSeed(seedColor: Colors.blue),
-            useMaterial3: true,
-          ),
-          home: SnakeHome(),
-        );
-      },
-    );
-  }
+  _SnakeGameState createState() => _SnakeGameState();
 }
 
-class SnakeHome extends StatefulWidget {
-  @override
-  _SnakeHomeState createState() => _SnakeHomeState();
-}
-
-class _SnakeHomeState extends State<SnakeHome> {
+class _SnakeGameState extends State<SnakeGame> {
   List<Offset> _snakePositions = [Offset.zero];
   Offset _foodPosition = Offset.zero;
   String _direction = 'up';
@@ -40,11 +19,31 @@ class _SnakeHomeState extends State<SnakeHome> {
   Timer? _timer;
   final _random = Random();
   bool _isGameOver = false;
+  bool _isPaused = false;
+  double _gridSize = 20.0; // Dimensione di ogni cella del gioco
+  late double _screenWidth;
+  late double _screenHeight;
+  late double _statusBarHeight;
+  late double _gameAreaHeight;
+  late int _speed; // Velocità di movimento del serpente
 
   @override
   void initState() {
     super.initState();
-    _startGame();
+    _speed = widget.initialSpeed; // Imposta la velocità iniziale dal livello selezionato
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _initializeGame();
+    });
+  }
+
+  void _initializeGame() {
+    setState(() {
+      _screenWidth = MediaQuery.of(context).size.width;
+      _screenHeight = MediaQuery.of(context).size.height;
+      _statusBarHeight = MediaQuery.of(context).padding.top;
+      _gameAreaHeight = _screenHeight - _statusBarHeight - 200; // Imposta l'altezza dell'area di gioco più piccola per evitare il bordo inferiore
+      _startGame();
+    });
   }
 
   void _startGame() {
@@ -53,16 +52,22 @@ class _SnakeHomeState extends State<SnakeHome> {
     _direction = 'up';
     _score = 0;
     _isGameOver = false;
+    _isPaused = false;
     _timer?.cancel();
-    _timer = Timer.periodic(Duration(milliseconds: 300), (timer) {
-      setState(() {
-        _moveSnake();
-      });
+    _timer = Timer.periodic(Duration(milliseconds: _speed), (timer) {
+      if (!_isPaused) {
+        setState(() {
+          _moveSnake();
+        });
+      }
     });
   }
 
   Offset _generateFoodPosition() {
-    return Offset(_random.nextInt(20).toDouble(), _random.nextInt(20).toDouble());
+    return Offset(
+      _random.nextInt((_screenWidth / _gridSize).floor()).toDouble(),
+      _random.nextInt((_gameAreaHeight / _gridSize).floor()).toDouble(),
+    );
   }
 
   void _moveSnake() {
@@ -88,7 +93,18 @@ class _SnakeHomeState extends State<SnakeHome> {
           newHead = head;
       }
 
-      if (_checkGameOver(newHead)) {
+      // Controlla se il serpente colpisce i bordi dell'area di gioco
+      if (newHead.dx < 0 ||
+          newHead.dx >= (_screenWidth / _gridSize).floor() ||
+          newHead.dy < 0 ||
+          newHead.dy >= (_gameAreaHeight / _gridSize).floor()) {
+        _isGameOver = true;
+        _timer?.cancel();
+        _showGameOverDialog();
+        return;
+      }
+
+      if (_snakePositions.contains(newHead)) {
         _isGameOver = true;
         _timer?.cancel();
         _showGameOverDialog();
@@ -106,16 +122,6 @@ class _SnakeHomeState extends State<SnakeHome> {
     });
   }
 
-  bool _checkGameOver(Offset position) {
-    if (position.dx < 0 || position.dx >= 20 || position.dy < 0 || position.dy >= 20) {
-      return true;
-    }
-    if (_snakePositions.contains(position)) {
-      return true;
-    }
-    return false;
-  }
-
   void _changeDirection(String newDirection) {
     if ((_direction == 'up' && newDirection != 'down') ||
         (_direction == 'down' && newDirection != 'up') ||
@@ -125,6 +131,61 @@ class _SnakeHomeState extends State<SnakeHome> {
         _direction = newDirection;
       });
     }
+  }
+
+  void _showPauseMenu() {
+    setState(() {
+      _isPaused = true;
+    });
+
+    showDialog(
+      context: context,
+      barrierDismissible: false, // L'utente non può chiudere il dialogo toccando fuori
+      builder: (BuildContext context) {
+        final theme = Theme.of(context);
+        return AlertDialog(
+          backgroundColor: theme.colorScheme.surface,
+          title: Text(
+            'Paused',
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: theme.colorScheme.onBackground,
+              fontSize: 24,
+            ),
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Icon(Icons.play_arrow, color: theme.colorScheme.primary),
+                title: Text('Resume', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onBackground)),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  setState(() {
+                    _isPaused = false;
+                  });
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.restart_alt, color: theme.colorScheme.primary),
+                title: Text('Restart', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onBackground)),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _startGame();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.exit_to_app, color: theme.colorScheme.primary),
+                title: Text('Exit', style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onBackground)),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _showGameOverDialog() {
@@ -151,104 +212,118 @@ class _SnakeHomeState extends State<SnakeHome> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Scaffold(
-      body: Column(
-        children: [
-          Expanded(
-            flex: 4,
-            child: Container(
-              color: Colors.black,
-              child: Stack(
-                children: [
-                  for (final position in _snakePositions)
-                    Positioned(
-                      left: position.dx * 20,
-                      top: position.dy * 20,
-                      child: Container(
-                        width: 20,
-                        height: 20,
-                        color: theme.colorScheme.primary,
-                      ),
-                    ),
-                  Positioned(
-                    left: _foodPosition.dx * 20,
-                    top: _foodPosition.dy * 20,
-                    child: Container(
-                      width: 20,
-                      height: 20,
-                      color: theme.colorScheme.secondary,
-                    ),
-                  ),
-                  Positioned(
-                    top: 40,
-                    left: 20,
-                    child: Text(
-                      'Score: $_score',
-                      style: TextStyle(
-                        fontSize: 36,
-                        color: theme.colorScheme.onSurface,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          Expanded(
-            flex: 1,
-            child: Container(
-              color: theme.colorScheme.background,
-              child: Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+    return WillPopScope(
+      onWillPop: () async {
+        _showPauseMenu();
+        return false; // Impedisce l'azione di tornare indietro finché il dialogo è aperto
+      },
+      child: Scaffold(
+        body: Column(
+          children: [
+            SizedBox(height: _statusBarHeight), // Lascia uno spazio per la status bar
+            Expanded(
+              flex: 4,
+              child: Container(
+                color: Colors.black,
+                child: Stack(
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.arrow_upward),
-                          iconSize: 36,
-                          color: theme.colorScheme.primary,
-                          onPressed: () => _changeDirection('up'),
-                        ),
-                      ],
+                    // Disegna il rettangolo dell'area di gioco
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: GameAreaPainter(),
+                      ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.arrow_back),
-                          iconSize: 36,
+                    // Disegna il serpente
+                    for (final position in _snakePositions)
+                      Positioned(
+                        left: position.dx * _gridSize,
+                        top: position.dy * _gridSize,
+                        child: Container(
+                          width: _gridSize,
+                          height: _gridSize,
                           color: theme.colorScheme.primary,
-                          onPressed: () => _changeDirection('left'),
                         ),
-                        SizedBox(width: 50),
-                        IconButton(
-                          icon: Icon(Icons.arrow_forward),
-                          iconSize: 36,
-                          color: theme.colorScheme.primary,
-                          onPressed: () => _changeDirection('right'),
+                      ),
+                    // Disegna il cibo (frutto lampeggiante durante la pausa)
+                    Positioned(
+                      left: _foodPosition.dx * _gridSize,
+                      top: _foodPosition.dy * _gridSize,
+                      child: AnimatedOpacity(
+                        opacity: _isPaused ? 0.0 : 1.0,
+                        duration: Duration(milliseconds: 500),
+                        child: Container(
+                          width: _gridSize,
+                          height: _gridSize,
+                          color: theme.colorScheme.secondary,
                         ),
-                      ],
+                      ),
                     ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        IconButton(
-                          icon: Icon(Icons.arrow_downward),
-                          iconSize: 36,
-                          color: theme.colorScheme.primary,
-                          onPressed: () => _changeDirection('down'),
+                    // Punteggio
+                    Positioned(
+                      top: 10,
+                      left: 10,
+                      child: Text(
+                        'Score: $_score',
+                        style: TextStyle(
+                          fontSize: 24,
+                          color: theme.colorScheme.onSurface,
+                          fontWeight: FontWeight.bold,
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),
               ),
             ),
-          ),
-        ],
+            Expanded(
+              flex: 1,
+              child: Container(
+                color: theme.colorScheme.background,
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.arrow_upward),
+                            iconSize: 36,
+                            color: theme.colorScheme.primary,
+                            onPressed: () => _changeDirection('up'),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.arrow_back),
+                            iconSize: 36,
+                            color: theme.colorScheme.primary,
+                            onPressed: () => _changeDirection('left'),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.arrow_downward),
+                            iconSize: 36,
+                            color: theme.colorScheme.primary,
+                            onPressed: () => _changeDirection('down'),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.arrow_forward),
+                            iconSize: 36,
+                            color: theme.colorScheme.primary,
+                            onPressed: () => _changeDirection('right'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -257,5 +332,24 @@ class _SnakeHomeState extends State<SnakeHome> {
   void dispose() {
     _timer?.cancel();
     super.dispose();
+  }
+}
+
+// Disegna un rettangolo attorno all'area di gioco
+class GameAreaPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.0;
+
+    final rect = Rect.fromLTWH(0, 0, size.width, size.height);
+    canvas.drawRect(rect, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
   }
 }

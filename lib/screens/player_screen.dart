@@ -39,6 +39,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
   bool _isMinimal = false;
+  Color? _previousAccentColor;
 
   late StreamSubscription<bool> _playingSubscription;
   late StreamSubscription<bool> _shuffleSubscription;
@@ -115,11 +116,28 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     );
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final accentColor = Theme.of(context).colorScheme.primary;
+    if (_previousAccentColor != accentColor) {
+      _previousAccentColor = accentColor;
+      _updateArtistImage(accentColor);
+    }
+  }
+
+  void _updateArtistImage(Color accentColor) async {
+    await _fetchArtistImage(
+      widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist',
+      accentColor,
+    );
+    setState(() {});
+  }
+
   Future<void> _saveCurrentIndex(int index) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('lastPlayedIndex', index);
   }
-
 
   void _playCurrent() async {
     if (widget.audioPlayer.currentIndex != _currentIndex) {
@@ -134,16 +152,12 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
       widget.audioPlayer.play();
     }
     _fetchAlbumArt(widget.audioFiles[_currentIndex].data);
-    await _fetchArtistImage(widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist');
-    setState(() {});
+    _updateArtistImage(Theme.of(context).colorScheme.primary);
   }
 
-
-
-
-  Future<void> _fetchArtistImage(String artist) async {
+  Future<void> _fetchArtistImage(String artist, Color accentColor) async {
     print('Fetching artist image for: $artist');
-    final images = await ImageService.fetchArtistImage(artist);
+    final images = await ImageService.fetchArtistImage(artist, accentColor);
     if (images['original'] != null && images['blurred'] != null) {
       print('Artist image fetched successfully');
       if (mounted) {
@@ -157,7 +171,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
       if (mounted) {
         setState(() {
           _artistImage = null;
-          _blurredArtistImage = null;  // Reset artist image if not found
+          _blurredArtistImage = null;
         });
       }
     }
@@ -169,7 +183,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     } else if (_currentIndex < widget.audioFiles.length - 1) {
       _currentIndex++;
     } else {
-      _currentIndex = 0; // Ricomincia da capo se siamo alla fine della lista
+      _currentIndex = 0;
     }
     _playCurrent();
   }
@@ -178,7 +192,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     if (_currentIndex > 0) {
       _currentIndex--;
     } else {
-      _currentIndex = widget.audioFiles.length - 1; // Torna all'ultima canzone se siamo all'inizio della lista
+      _currentIndex = widget.audioFiles.length - 1;
     }
     _playCurrent();
   }
@@ -326,109 +340,129 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final backgroundColor = const Color(0xFF1C1C1C); // Colore di sfondo scuro
+    final backgroundColor = const Color(0xFF1C1C1C);
     final currentSong = widget.audioFiles[_currentIndex];
     final isFavorite = favoriteSongs.any((song) => song.data == currentSong.data);
 
-
     return Scaffold(
       backgroundColor: backgroundColor,
-      body: GestureDetector(
-        onTap: _toggleMinimalMode,
-        onHorizontalDragEnd: (details) {
-          if (details.primaryVelocity! < 0) {
-            _playNext();
-          } else if (details.primaryVelocity! > 0) {
-            _playPrevious();
-          }
-        },
-        child: Stack(
-          children: [
-            if (_blurredArtistImage != null)
-              Positioned.fill(
-                child: Image.memory(
-                  _blurredArtistImage!,
-                  fit: BoxFit.cover,
-                  color: Colors.black45,
-                  colorBlendMode: BlendMode.darken,
+      body: Stack(
+        children: [
+          if (_blurredArtistImage != null)
+            Positioned.fill(
+              child: Image.memory(
+                _blurredArtistImage!,
+                fit: BoxFit.cover,
+                color: Colors.black45,
+                colorBlendMode: BlendMode.darken,
+              ),
+            ),
+          Column(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(left: 24.0, right: 24.0, bottom: 20.0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    GestureDetector(
+                      // Aggiungi GestureDetector per gestire le gesture di cambio traccia
+                      behavior: HitTestBehavior.translucent,
+                      onHorizontalDragEnd: (details) {
+                        // Determina se cambiare traccia basato sulla velocità del drag
+                        if (details.primaryVelocity! < 0) {
+                          _playNext();
+                        } else if (details.primaryVelocity! > 0) {
+                          _playPrevious();
+                        }
+                      },
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            currentSong.title,
+                            style: theme.textTheme.headlineSmall?.copyWith(color: Colors.white),
+                            textAlign: TextAlign.left,
+                          ),
+                          Text(
+                            currentSong.artist ?? 'Unknown Artist',
+                            style: theme.textTheme.titleMedium?.copyWith(color: Colors.white70),
+                            textAlign: TextAlign.left,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Slider(
+                      activeColor: Colors.white,
+                      inactiveColor: Colors.white38,
+                      value: _currentPosition.inSeconds.toDouble(),
+                      min: 0.0,
+                      max: _totalDuration.inSeconds.toDouble(),
+                      onChanged: (value) {
+                        setState(() {
+                          widget.audioPlayer.seek(Duration(seconds: value.toInt()));
+                        });
+                      },
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(_formatDuration(_currentPosition), style: TextStyle(color: Colors.white)),
+                          Text(_formatDuration(_totalDuration), style: TextStyle(color: Colors.white)),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: Icon(Icons.skip_previous, color: Colors.white),
+                          onPressed: _playPrevious,
+                        ),
+                        IconButton(
+                          icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 36),
+                          onPressed: _togglePlayPause,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.skip_next, color: Colors.white),
+                          onPressed: _playNext,
+                        ),
+                      ],
+                    ),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        IconButton(
+                          icon: Icon(_isShuffle ? Icons.shuffle_on : Icons.shuffle, color: Colors.white),
+                          onPressed: _toggleShuffle,
+                        ),
+                        IconButton(
+                          icon: Icon(_loopMode == LoopMode.one ? Icons.repeat_one : (_loopMode == LoopMode.all ? Icons.repeat : Icons.repeat), color: Colors.white),
+                          onPressed: _toggleRepeat,
+                        ),
+                        IconButton(
+                          icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: Colors.white),
+                          onPressed: _toggleFavorite,
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.more_vert, color: Colors.white),
+                          onPressed: () => _showBottomSheet(context),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (!_isMinimal)
-                  Column(
-                    children: [
-                      if (_artistImage != null)
-                        Image.memory(_artistImage!, height: 250, fit: BoxFit.cover),
-                      Text(currentSong.title, style: theme.textTheme.headlineSmall?.copyWith(color: Colors.white)),
-                      Text(currentSong.artist ?? 'Unknown Artist', style: theme.textTheme.titleMedium?.copyWith(color: Colors.white70)),
-                    ],
-                  ),
-                Slider(
-                  activeColor: Colors.white,
-                  inactiveColor: Colors.white38,
-                  value: _currentPosition.inSeconds.toDouble(),
-                  min: 0.0,
-                  max: _totalDuration.inSeconds.toDouble(),
-                  onChanged: (value) {
-                    setState(() {
-                      widget.audioPlayer.seek(Duration(seconds: value.toInt()));
-                    });
-                  },
-                ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(_formatDuration(_currentPosition), style: TextStyle(color: Colors.white)),
-                      Text(_formatDuration(_totalDuration), style: TextStyle(color: Colors.white)),
-                    ],
-                  ),
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: Icon(Icons.skip_previous, color: Colors.white),
-                      onPressed: _playPrevious,
-                    ),
-                    IconButton(
-                      icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white, size: 36),
-                      onPressed: _togglePlayPause,
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.skip_next, color: Colors.white),
-                      onPressed: _playNext,
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    IconButton(
-                      icon: Icon(_isShuffle ? Icons.shuffle_on : Icons.shuffle, color: Colors.white),
-                      onPressed: _toggleShuffle,
-                    ),
-                    IconButton(
-                      icon: Icon(_loopMode == LoopMode.one ? Icons.repeat_one : (_loopMode == LoopMode.all ? Icons.repeat : Icons.repeat), color: Colors.white),
-                      onPressed: _toggleRepeat,
-                    ),
-                    IconButton(
-                      icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: Colors.white),
-                      onPressed: _toggleFavorite,
-                    ),
-                    IconButton(
-                      icon: Icon(Icons.more_vert, color: Colors.white),
-                      onPressed: () => _showBottomSheet(context),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            if (_isMinimal)
-              SlideTransition(
+              const SizedBox(height: 20),
+            ],
+          ),
+          if (_isMinimal)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SlideTransition(
                 position: _slideAnimation,
                 child: FadeTransition(
                   opacity: _fadeAnimation,
@@ -457,10 +491,32 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
                   ),
                 ),
               ),
-          ],
-        ),
+            ),
+          // Aggiungi i GestureDetector per le aree di sicurezza a sinistra e a destra
+          Positioned(
+            left: 0,
+            child: GestureDetector(
+              onTap: () => _playPrevious(),
+              child: Container(
+                width: 40, // Larghezza dell'area di sicurezza
+                height: MediaQuery.of(context).size.height,
+                color: Colors.transparent, // Colore trasparente
+              ),
+            ),
+          ),
+          Positioned(
+            right: 0,
+            child: GestureDetector(
+              onTap: () => _playNext(),
+              child: Container(
+                width: 40, // Larghezza dell'area di sicurezza
+                height: MediaQuery.of(context).size.height,
+                color: Colors.transparent, // Colore trasparente
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
-

@@ -7,9 +7,11 @@ import 'dart:io';
 import 'package:image/image.dart' as img;
 
 class ImageService {
-  static const String _apiUrl = 'https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&pithumbsize=500&titles=';
+  static const String _apiUrl =
+      'https://en.wikipedia.org/w/api.php?action=query&prop=pageimages&format=json&pithumbsize=500&titles=';
 
-  static Future<Map<String, Uint8List?>> fetchArtistImage(String artistName) async {
+  static Future<Map<String, Uint8List?>> fetchArtistImage(
+      String artistName, Color accentColor) async {
     final primaryArtist = _extractPrimaryArtist(artistName);
     print('Primary artist: $primaryArtist');
 
@@ -19,8 +21,8 @@ class ImageService {
     if (await File(cachedImagePath).exists()) {
       print('Loading image from cache');
       final cachedImage = await File(cachedImagePath).readAsBytes();
-      final blurredImage = await _blurImage(cachedImage);
-      return {'original': cachedImage, 'blurred': blurredImage};
+      final processedImage = await _processImage(cachedImage, accentColor);
+      return {'original': cachedImage, 'blurred': processedImage};
     }
 
     final url = '$_apiUrl$primaryArtist';
@@ -42,10 +44,12 @@ class ImageService {
 
               await File(cachedImagePath).writeAsBytes(originalImage);
 
-              final blurredImage = await _blurImage(originalImage);
-              return {'original': originalImage, 'blurred': blurredImage};
+              final processedImage =
+              await _processImage(originalImage, accentColor);
+              return {'original': originalImage, 'blurred': processedImage};
             } else {
-              print('Failed to fetch image. Status code: ${imageResponse.statusCode}');
+              print(
+                  'Failed to fetch image. Status code: ${imageResponse.statusCode}');
             }
           }
         }
@@ -64,9 +68,45 @@ class ImageService {
     return match.isNotEmpty ? match[0].trim() : artistName;
   }
 
-  static Future<Uint8List> _blurImage(Uint8List imageBytes) async {
+  static Future<Uint8List> _processImage(
+      Uint8List imageBytes, Color accentColor) async {
     final image = img.decodeImage(imageBytes);
-    final blurredImage = img.gaussianBlur(image!, 10); // Adjust the value '10' to control the blur amount
+    if (image == null) {
+      return imageBytes;
+    }
+
+    // Converti l'immagine in bianco e nero
+    final grayscaleImage = img.grayscale(image);
+
+    // Applica il colore accento
+    final coloredImage = _applyAccentColor(grayscaleImage, accentColor);
+
+    // Sfoca l'immagine
+    final blurredImage = img.gaussianBlur(coloredImage, 10);
+
     return Uint8List.fromList(img.encodeJpg(blurredImage));
+  }
+
+  static img.Image _applyAccentColor(img.Image image, Color accentColor) {
+    final accent = img.getColor(
+      accentColor.red,
+      accentColor.green,
+      accentColor.blue,
+    );
+
+    for (int y = 0; y < image.height; y++) {
+      for (int x = 0; x < image.width; x++) {
+        final pixel = image.getPixel(x, y);
+        final gray = img.getLuminance(pixel); // Calcola la luminosità
+        final tintedPixel = img.getColor(
+          (gray * accentColor.red / 255).toInt(),
+          (gray * accentColor.green / 255).toInt(),
+          (gray * accentColor.blue / 255).toInt(),
+        );
+        image.setPixel(x, y, tintedPixel);
+      }
+    }
+
+    return image;
   }
 }

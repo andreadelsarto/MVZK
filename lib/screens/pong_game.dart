@@ -1,37 +1,12 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:dynamic_color/dynamic_color.dart';
 
-void main() => runApp(PongGame());
-
-class PongGame extends StatelessWidget {
+class PongGame extends StatefulWidget {
   @override
-  Widget build(BuildContext context) {
-    return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        return MaterialApp(
-          title: 'Pong Game',
-          theme: ThemeData(
-            colorScheme: lightDynamic ?? ColorScheme.fromSeed(seedColor: Colors.blue),
-            useMaterial3: true,
-          ),
-          darkTheme: ThemeData(
-            colorScheme: darkDynamic ?? ColorScheme.fromSeed(seedColor: Colors.blue),
-            useMaterial3: true,
-          ),
-          home: PongHome(),
-        );
-      },
-    );
-  }
+  _PongGameState createState() => _PongGameState();
 }
 
-class PongHome extends StatefulWidget {
-  @override
-  _PongHomeState createState() => _PongHomeState();
-}
-
-class _PongHomeState extends State<PongHome> {
+class _PongGameState extends State<PongGame> {
   double paddleWidth = 100;
   double paddleHeight = 20;
   double ballSize = 20;
@@ -207,7 +182,7 @@ class _PongHomeState extends State<PongHome> {
               'Score: $score',
               style: TextStyle(
                 fontSize: 36,
-                color: Colors.black,
+                color: Theme.of(context).colorScheme.onBackground,
                 fontWeight: FontWeight.bold,
               ),
             ),
