@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'song_list_screen.dart';
 import 'package:just_audio/just_audio.dart';
 import 'game_screen.dart';  // Importa la nuova schermata
+import 'SettingsScreen.dart';
 
 class HomeScreen extends StatelessWidget {
   final AudioPlayer audioPlayer;
@@ -39,6 +40,14 @@ class HomeScreen extends StatelessWidget {
               _buildMenuItem(context, 'marketplace', Icons.store, () {}),
               _buildMenuItem(context, 'games', Icons.games, () {
                 Navigator.of(context).push(_createRoute());
+              }),
+              _buildMenuItem(context, 'settings', Icons.settings, () { // Aggiunta voce Settings
+              Navigator.push(
+              context,
+              MaterialPageRoute(
+              builder: (context) => const SettingsScreen(), // Naviga alla schermata Settings
+              ),
+              );
               }),
             ],
           ),
