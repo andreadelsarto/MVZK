@@ -126,17 +126,17 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     }
   }
 
-  void _updateArtistImage(Color accentColor) async {
-    await _fetchArtistImage(
-      widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist',
-      accentColor,
-    );
-    setState(() {});
-  }
-
-  Future<void> _saveCurrentIndex(int index) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setInt('lastPlayedIndex', index);
+  void _updateArtistImage(Color accentColor) {
+    // Sposta l'aggiornamento dello stato in un callback post frame
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _fetchArtistImage(
+        widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist',
+        accentColor,
+      );
+      if (mounted) {
+        setState(() {}); // Aggiorna lo stato in modo sicuro
+      }
+    });
   }
 
   void _playCurrent() async {
@@ -151,8 +151,12 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
       );
       widget.audioPlayer.play();
     }
-    _fetchAlbumArt(widget.audioFiles[_currentIndex].data);
-    _updateArtistImage(Theme.of(context).colorScheme.primary);
+
+    // Sposta l'aggiornamento dello stato in un callback post frame
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchAlbumArt(widget.audioFiles[_currentIndex].data);
+      _updateArtistImage(Theme.of(context).colorScheme.primary);
+    });
   }
 
   Future<void> _fetchArtistImage(String artist, Color accentColor) async {
