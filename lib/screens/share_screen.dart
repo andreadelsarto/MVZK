@@ -166,9 +166,9 @@ class _ShareScreenState extends State<ShareScreen> {
       final file = await File(filePath).create();
       await file.writeAsBytes(pngBytes);
 
-      // Condividi l'immagine salvata
-      Share.shareFiles(
-        [file.path],
+      // Condividi l'immagine salvata utilizzando shareXFiles
+      Share.shareXFiles(
+        [XFile(file.path)],
         text: _includeText
             ? 'Sto ascoltando "${widget.songTitle}" di ${widget.artistName} su MVZK!'
             : null,
