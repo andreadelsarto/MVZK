@@ -10,6 +10,7 @@ import 'package:on_audio_query/on_audio_query.dart';
 import 'image_service.dart';
 import 'artist_info_screen.dart';
 import 'song_list_screen.dart';
+import 'share_screen.dart';
 
 List<SongModel> favoriteSongs = [];
 
@@ -268,28 +269,39 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
                 leading: Icon(Icons.playlist_add),
                 title: Text('Aggiungi alla playlist'),
                 onTap: () {
-                  // Handle adding to playlist
+                  // Gestisci l'aggiunta alla playlist
                 },
               ),
               ListTile(
                 leading: Icon(Icons.album),
                 title: Text('Visualizza album'),
                 onTap: () {
-                  // Handle viewing album
+                  // Gestisci la visualizzazione dell'album
                 },
               ),
               ListTile(
                 leading: Icon(Icons.person),
                 title: Text('Visualizza artista'),
                 onTap: () {
-                  // Handle viewing artist
+                  // Gestisci la visualizzazione dell'artista
                 },
               ),
               ListTile(
                 leading: Icon(Icons.share),
                 title: Text('Condividi'),
                 onTap: () {
-                  // Handle sharing
+                  Navigator.pop(context); // Chiudi il bottom sheet
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => ShareScreen(
+                        image: _blurredArtistImage!,
+                        artistName: widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist',
+                        songTitle: widget.audioFiles[_currentIndex].title,
+                        accentColor: Theme.of(context).colorScheme.primary,
+                      ),
+                    ),
+                  );
                 },
               ),
               ListTile(
