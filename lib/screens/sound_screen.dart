@@ -12,10 +12,22 @@ class SoundScreen extends StatefulWidget {
 }
 
 class _SoundScreenState extends State<SoundScreen> {
-  final AudioPlayer audioPlayer = AudioPlayer(); // Istanza di AudioPlayer
+  final AudioPlayer audioPlayer = AudioPlayer();
 
-  double _crossfadeDuration = 2.0; // Valore predefinito del crossfade in secondi
-  bool _isVolumeNormalizationEnabled = false; // Stato di normalizzazione del volume
+  double _crossfadeDuration = 2.0;
+  bool _isVolumeNormalizationEnabled = false;
+
+  Map<String, List<double>> equalizerPresets = {
+    'Normal': [0.0, 0.0, 0.0, 0.0, 0.0],
+    'Pop': [2.0, 1.0, 0.0, 1.0, 2.0],
+    'Rock': [3.0, 2.0, 0.0, 2.0, 3.0],
+    'Jazz': [1.0, 0.5, 0.0, 0.5, 1.0],
+    'Classical': [0.0, 1.0, 3.0, 1.0, 0.0],
+    'Custom': [], // Verrà caricato dalle preferenze
+  };
+
+  List<double> _currentEqualizerSettings = [0.0, 0.0, 0.0, 0.0, 0.0];
+  String _currentPreset = 'Normal';
 
   @override
   void initState() {
@@ -26,9 +38,17 @@ class _SoundScreenState extends State<SoundScreen> {
   Future<void> _loadSettings() async {
     final prefs = await SharedPreferences.getInstance();
     setState(() {
-      // Carica il valore dal dispositivo o imposta il default a 2.0
       _crossfadeDuration = prefs.getDouble('crossfadeDuration') ?? 2.0;
       _isVolumeNormalizationEnabled = prefs.getBool('volumeNormalization') ?? false;
+      _currentPreset = prefs.getString('equalizerPreset') ?? 'Normal';
+
+      if (_currentPreset == 'Custom') {
+        List<double> customSettings = prefs.getStringList('customEqualizerSettings')?.map((e) => double.parse(e)).toList() ?? [0.0, 0.0, 0.0, 0.0, 0.0];
+        _currentEqualizerSettings = customSettings;
+        equalizerPresets['Custom'] = customSettings;
+      } else {
+        _currentEqualizerSettings = equalizerPresets[_currentPreset]!;
+      }
     });
   }
 
@@ -42,6 +62,17 @@ class _SoundScreenState extends State<SoundScreen> {
     await prefs.setBool('volumeNormalization', value);
   }
 
+  Future<void> _saveEqualizerPreset(String preset) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('equalizerPreset', preset);
+  }
+
+  Future<void> _saveCustomEqualizerSettings(List<double> settings) async {
+    final prefs = await SharedPreferences.getInstance();
+    List<String> settingsAsString = settings.map((e) => e.toString()).toList();
+    await prefs.setStringList('customEqualizerSettings', settingsAsString);
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -52,7 +83,7 @@ class _SoundScreenState extends State<SoundScreen> {
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         title: Text(
-          'sound',
+          'Sound',
           style: TextStyle(
             color: theme.colorScheme.onBackground,
           ),
@@ -64,7 +95,7 @@ class _SoundScreenState extends State<SoundScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'audio settings',
+              'Audio Settings',
               style: theme.textTheme.headlineMedium?.copyWith(
                 color: theme.colorScheme.onBackground,
                 fontSize: 50,
@@ -73,29 +104,29 @@ class _SoundScreenState extends State<SoundScreen> {
             const SizedBox(height: 20),
             _buildSoundOption(
               context,
-              'crossfade',
-              'fade between songs',
+              'Crossfade',
+              'Fade between songs',
               Icons.swap_horiz,
-                  () => _showCrossfadeDialog(context),
+                  () => _showCrossfadeBottomSheet(context),
             ),
             _buildSoundOption(
               context,
-              'equalizer',
-              'adjust sound frequencies',
+              'Equalizer',
+              'Adjust sound frequencies',
               Icons.equalizer,
-                  () => _showEqualizerDialog(context),
+                  () => _showEqualizerBottomSheet(context),
             ),
             _buildSoundOption(
               context,
-              'bass boost',
-              'enhance low frequencies',
+              'Bass Boost',
+              'Enhance low frequencies',
               Icons.surround_sound,
-                  () => _showBassBoostDialog(context),
+                  () => _showBassBoostBottomSheet(context),
             ),
             _buildSoundOption(
               context,
-              'volume normalization',
-              'normalize volume level',
+              'Volume Normalization',
+              'Normalize volume level',
               Icons.volume_up,
                   () => _toggleVolumeNormalization(),
             ),
@@ -120,7 +151,7 @@ class _SoundScreenState extends State<SoundScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  title.toLowerCase(),
+                  title,
                   style: theme.textTheme.bodyLarge?.copyWith(
                     color: theme.colorScheme.onBackground,
                     fontSize: 30,
@@ -140,15 +171,19 @@ class _SoundScreenState extends State<SoundScreen> {
     );
   }
 
-  void _showCrossfadeDialog(BuildContext context) {
-    showDialog(
+  void _showCrossfadeBottomSheet(BuildContext context) {
+    showModalBottomSheet(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('crossfade settings'),
-          content: Column(
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Text(
+                'Crossfade Settings',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               Text('Set the crossfade duration manually between tracks.'),
               StatefulBuilder(
                 builder: (context, setState) {
@@ -169,60 +204,127 @@ class _SoundScreenState extends State<SoundScreen> {
               ),
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('close'),
-            ),
-          ],
         );
       },
     );
   }
 
-  void _showEqualizerDialog(BuildContext context) {
-    showDialog(
+  void _showEqualizerBottomSheet(BuildContext context) {
+    List<double> equalizerValues = List.from(_currentEqualizerSettings);
+
+    showModalBottomSheet(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('equalizer settings'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('Equalizer settings to adjust different sound frequencies will be here.'),
-              // Aggiungi qui il controllo per l'equalizzatore
-            ],
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: StatefulBuilder(
+            builder: (BuildContext context, StateSetter setState) {
+              return Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Equalizer Settings',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
+                  DropdownButton<String>(
+                    value: _currentPreset,
+                    items: [
+                      ...equalizerPresets.keys.map((String key) {
+                        return DropdownMenuItem<String>(
+                          value: key,
+                          child: Text(key),
+                        );
+                      }).toList(),
+                      if (!_currentPresetIsInPresets()) // Aggiungi solo se 'Custom' non è già presente
+                        DropdownMenuItem<String>(
+                          value: 'Custom',
+                          child: Text('Custom'),
+                        ),
+                    ],
+                    onChanged: (String? value) {
+                      setState(() {
+                        _currentPreset = value!;
+                        if (_currentPreset != 'Custom') {
+                          // Aggiorna i valori degli slider in base al preset selezionato
+                          for (int i = 0; i < equalizerValues.length; i++) {
+                            equalizerValues[i] = equalizerPresets[_currentPreset]![i];
+                          }
+                          _saveEqualizerPreset(_currentPreset);
+                        } else {
+                          // Carica le impostazioni personalizzate se 'Custom' è selezionato
+                          _loadCustomEqualizerSettings();
+                        }
+                      });
+                    },
+                  ),
+                  ...List.generate(equalizerValues.length, (index) {
+                    return TweenAnimationBuilder<double>(
+                      tween: Tween<double>(
+                        begin: _currentEqualizerSettings[index],
+                        end: equalizerValues[index],
+                      ),
+                      duration: Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                      builder: (context, value, child) {
+                        return Slider(
+                          min: -10.0,
+                          max: 10.0,
+                          value: value,
+                          onChanged: (newValue) {
+                            setState(() {
+                              _currentEqualizerSettings[index] = newValue;
+                              equalizerValues[index] = newValue; // Aggiorna immediatamente
+                              _currentPreset = 'Custom'; // Imposta il preset su 'Custom'
+                              _saveCustomEqualizerSettings(equalizerValues); // Salva il preset personalizzato
+                            });
+                          },
+                          divisions: 20,
+                          label: '${value.toStringAsFixed(1)} dB',
+                        );
+                      },
+                    );
+                  }),
+                ],
+              );
+            },
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('close'),
-            ),
-          ],
         );
       },
     );
   }
 
-  void _showBassBoostDialog(BuildContext context) {
-    showDialog(
+// Funzione di supporto per verificare se il preset corrente è nei preset predefiniti
+  bool _currentPresetIsInPresets() {
+    return equalizerPresets.containsKey(_currentPreset);
+  }
+
+// Carica le impostazioni personalizzate salvate
+  void _loadCustomEqualizerSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    List<double> customSettings = prefs.getStringList('customEqualizerSettings')?.map((e) => double.parse(e)).toList() ?? [0.0, 0.0, 0.0, 0.0, 0.0];
+    setState(() {
+      _currentEqualizerSettings = customSettings;
+    });
+  }
+
+
+  void _showBassBoostBottomSheet(BuildContext context) {
+    showModalBottomSheet(
       context: context,
       builder: (context) {
-        return AlertDialog(
-          title: Text('bass boost settings'),
-          content: Column(
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              Text(
+                'Bass Boost Settings',
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               Text('Control for enhancing bass frequencies will be here.'),
               // Aggiungi qui il controllo per il potenziamento dei bassi
             ],
           ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: Text('close'),
-            ),
-          ],
         );
       },
     );

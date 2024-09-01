@@ -48,6 +48,7 @@ dependencies:
   on_audio_query: ^2.9.0
   miniplayer: ^1.0.1
   share_plus: ^6.3.0
+  equalizer_flutter: ^0.0.1
 
 dev_dependencies:
   flutter_test:
