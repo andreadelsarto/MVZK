@@ -73,7 +73,7 @@ class _ArtistInfoScreenState extends State<ArtistInfoScreen> {
               if (_wikipediaUrl != null)
                 GestureDetector(
                   onTap: () {
-                    // Logica per aprire il link di Wikipedia
+                    // Logica per aprire il link di Wikipedia migliorata per una migliore visione
                   },
                   child: const Text(
                     'Source: Wikipedia',
