@@ -44,6 +44,7 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
   late Animation<Offset> _textSlideAnimation;
   bool _isMinimal = false;
   Color? _previousAccentColor;
+  double _backgroundOpacity = 1.0; // Variabile di stato per gestire l'opacità dello sfondo
 
   late StreamSubscription<bool> _playingSubscription;
   late StreamSubscription<bool> _shuffleSubscription;
@@ -56,6 +57,11 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
     super.initState();
     _currentIndex = widget.initialIndex;
     widget.audioPlayer.setVolume(_volume);
+
+    // Aggiungi questo per assicurarti che l'animazione di testo sia impostata correttamente all'avvio
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _textAnimationController.forward(from: 0.0);
+    });
 
     _playingSubscription = widget.audioPlayer.playingStream.listen((isPlaying) {
       if (mounted) {
@@ -128,8 +134,8 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
     );
 
     _textSlideAnimation = Tween<Offset>(
-      begin: Offset(0, 0.1), // Entrata dal basso
-      end: Offset(0, 0), // Posizione finale
+      begin: Offset(0, 0.1),
+      end: Offset(0, 0),
     ).animate(
       CurvedAnimation(
         parent: _textAnimationController,
@@ -141,22 +147,24 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Inizializzazione basata sul contesto
     _playCurrent();  // Spostato qui per utilizzare Theme.of(context) correttamente
   }
 
   void _playNext() async {
-    print('Playing next track'); // Log
-    _textAnimationController.reverse(from: 1.0); // Anima l'uscita del testo attuale
+    print('Playing next track');
+    _textAnimationController.reverse(from: 1.0);
 
-    await Future.delayed(const Duration(milliseconds: 500)); // Attendi che l'animazione sia completa
+    setState(() {
+      _backgroundOpacity = 0.0; // Inizia l'effetto fade-out
+    });
 
-    // Logica per selezionare la prossima traccia
+    await Future.delayed(const Duration(milliseconds: 300)); // Attendi il completamento del fade-out
+
     if (_isShuffle) {
       int nextIndex;
       do {
         nextIndex = Random().nextInt(widget.audioFiles.length);
-      } while (nextIndex == _currentIndex); // Evita di ripetere la stessa traccia
+      } while (nextIndex == _currentIndex);
       _currentIndex = nextIndex;
     } else {
       if (_currentIndex < widget.audioFiles.length - 1) {
@@ -166,20 +174,19 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
       }
     }
 
-    print('Next track index: $_currentIndex, Title: ${widget.audioFiles[_currentIndex].title}'); // Log
+    print('Next track index: $_currentIndex, Title: ${widget.audioFiles[_currentIndex].title}');
 
     await widget.audioPlayer.setAudioSource(
       AudioSource.uri(Uri.parse(widget.audioFiles[_currentIndex].uri!)),
     );
     widget.audioPlayer.play();
 
-    // Aggiorna le informazioni per la nuova traccia
     setState(() {
       _fetchAlbumArt(widget.audioFiles[_currentIndex].data);
       _updateArtistImage(Theme.of(context).colorScheme.primary);
+      _backgroundOpacity = 1.0; // Ripristina l'opacità per l'effetto fade-in
     });
 
-    // Anima l'ingresso del nuovo testo
     _textAnimationController.forward(from: 0.0);
   }
 
@@ -400,11 +407,15 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
         children: [
           if (_blurredArtistImage != null)
             Positioned.fill(
-              child: Image.memory(
-                _blurredArtistImage!,
-                fit: BoxFit.cover,
-                color: Colors.black45,
-                colorBlendMode: BlendMode.darken,
+              child: AnimatedOpacity(
+                opacity: _backgroundOpacity,
+                duration: Duration(milliseconds: 300), // Durata per il fade-in/fade-out
+                child: Image.memory(
+                  _blurredArtistImage!,
+                  fit: BoxFit.cover,
+                  color: Colors.black45,
+                  colorBlendMode: BlendMode.darken,
+                ),
               ),
             ),
           Column(
@@ -415,7 +426,6 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Visualizza la prossima canzone
                     Align(
                       alignment: Alignment.topRight,
                       child: SlideTransition(
