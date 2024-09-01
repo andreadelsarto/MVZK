@@ -11,6 +11,7 @@ import 'image_service.dart';
 import 'artist_info_screen.dart';
 import 'song_list_screen.dart';
 import 'share_screen.dart';
+import 'sound_screen.dart';
 
 List<SongModel> favoriteSongs = [];
 
@@ -62,6 +63,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         });
       }
     });
+
     _shuffleSubscription = widget.audioPlayer.shuffleModeEnabledStream.listen((isShuffle) {
       if (mounted) {
         setState(() {
@@ -69,6 +71,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         });
       }
     });
+
     _loopModeSubscription = widget.audioPlayer.loopModeStream.listen((loopMode) {
       if (mounted) {
         setState(() {
@@ -76,6 +79,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         });
       }
     });
+
     _positionSubscription = widget.audioPlayer.positionStream.listen((position) {
       if (mounted) {
         setState(() {
@@ -83,6 +87,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         });
       }
     });
+
     _durationSubscription = widget.audioPlayer.durationStream.listen((duration) {
       if (mounted) {
         setState(() {
@@ -117,89 +122,34 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     );
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final accentColor = Theme.of(context).colorScheme.primary;
-    if (_previousAccentColor != accentColor) {
-      _previousAccentColor = accentColor;
-      _updateArtistImage(accentColor);
-    }
-  }
-
-  void _updateArtistImage(Color accentColor) {
-    // Sposta l'aggiornamento dello stato in un callback post frame
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      await _fetchArtistImage(
-        widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist',
-        accentColor,
-      );
-      if (mounted) {
-        setState(() {}); // Aggiorna lo stato in modo sicuro
+  void _playNext() async {
+    print('Playing next track'); // Log
+    if (_isShuffle) {
+      int nextIndex;
+      do {
+        nextIndex = Random().nextInt(widget.audioFiles.length);
+      } while (nextIndex == _currentIndex); // Evita di ripetere la stessa traccia
+      _currentIndex = nextIndex;
+    } else {
+      if (_currentIndex < widget.audioFiles.length - 1) {
+        _currentIndex++;
+      } else {
+        _currentIndex = 0;
       }
-    });
-  }
-
-  void _playCurrent() async {
-    if (widget.audioPlayer.currentIndex != _currentIndex) {
-      await widget.audioPlayer.setAudioSource(
-        ConcatenatingAudioSource(
-          children: widget.audioFiles.map((song) {
-            return AudioSource.uri(Uri.parse(song.uri!));
-          }).toList(),
-        ),
-        initialIndex: _currentIndex,
-      );
-      widget.audioPlayer.play();
     }
 
-    // Sposta l'aggiornamento dello stato in un callback post frame
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    print('Next track index: $_currentIndex, Title: ${widget.audioFiles[_currentIndex].title}'); // Log
+
+    await widget.audioPlayer.setAudioSource(
+      AudioSource.uri(Uri.parse(widget.audioFiles[_currentIndex].uri!)),
+    );
+    widget.audioPlayer.play();
+
+    // Aggiorna le informazioni della traccia corrente
+    setState(() {
       _fetchAlbumArt(widget.audioFiles[_currentIndex].data);
       _updateArtistImage(Theme.of(context).colorScheme.primary);
     });
-  }
-
-  Future<void> _fetchArtistImage(String artist, Color accentColor) async {
-    print('Fetching artist image for: $artist');
-    final images = await ImageService.fetchArtistImage(artist, accentColor);
-    if (images['original'] != null && images['blurred'] != null) {
-      print('Artist image fetched successfully');
-      if (mounted) {
-        setState(() {
-          _artistImage = images['original'];
-          _blurredArtistImage = images['blurred'];
-        });
-      }
-    } else {
-      print('Failed to fetch artist image');
-      if (mounted) {
-        setState(() {
-          _artistImage = null;
-          _blurredArtistImage = null;
-        });
-      }
-    }
-  }
-
-  void _playNext() {
-    if (_isShuffle) {
-      _currentIndex = Random().nextInt(widget.audioFiles.length);
-    } else if (_currentIndex < widget.audioFiles.length - 1) {
-      _currentIndex++;
-    } else {
-      _currentIndex = 0;
-    }
-    _playCurrent();
-  }
-
-  void _playPrevious() {
-    if (_currentIndex > 0) {
-      _currentIndex--;
-    } else {
-      _currentIndex = widget.audioFiles.length - 1;
-    }
-    _playCurrent();
   }
 
   void _togglePlayPause() {
@@ -224,24 +174,6 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
       widget.audioPlayer.setLoopMode(LoopMode.all);
     } else {
       widget.audioPlayer.setLoopMode(LoopMode.off);
-    }
-  }
-
-  void _fetchAlbumArt(String filePath) async {
-    final tagger = Audiotagger();
-    Tag? tag = await tagger.readTags(path: filePath);
-    if (tag != null && tag.artwork != null) {
-      if (mounted) {
-        setState(() {
-          _albumArt = tag.artwork! as Uint8List?;
-        });
-      }
-    } else {
-      if (mounted) {
-        setState(() {
-          _albumArt = null;
-        });
-      }
     }
   }
 
@@ -290,7 +222,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
                 leading: Icon(Icons.share),
                 title: Text('Condividi'),
                 onTap: () {
-                  Navigator.pop(context); // Chiudi il bottom sheet
+                  Navigator.pop(context);
                   Navigator.push(
                     context,
                     MaterialPageRoute(
@@ -312,7 +244,9 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => ArtistInfoScreen(artistName: widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist'),
+                      builder: (context) => ArtistInfoScreen(
+                        artistName: widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist',
+                      ),
                     ),
                   );
                 },
@@ -324,15 +258,83 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     );
   }
 
-  void _toggleMinimalMode() {
+  void _playPrevious() {
     setState(() {
-      _isMinimal = !_isMinimal;
-      if (_isMinimal) {
-        _animationController.forward();
+      if (_currentIndex > 0) {
+        _currentIndex--;
       } else {
-        _animationController.reverse();
+        _currentIndex = widget.audioFiles.length - 1;
       }
     });
+    _playCurrent();
+  }
+
+  void _playCurrent() async {
+    if (widget.audioPlayer.currentIndex != _currentIndex) {
+      await widget.audioPlayer.setAudioSource(
+        ConcatenatingAudioSource(
+          children: widget.audioFiles.map((song) {
+            return AudioSource.uri(Uri.parse(song.uri!));
+          }).toList(),
+        ),
+        initialIndex: _currentIndex,
+      );
+      widget.audioPlayer.play();
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _fetchAlbumArt(widget.audioFiles[_currentIndex].data);
+      _updateArtistImage(Theme.of(context).colorScheme.primary);
+    });
+  }
+
+  Future<void> _fetchArtistImage(String artist, Color accentColor) async {
+    final images = await ImageService.fetchArtistImage(artist, accentColor);
+    if (images['original'] != null && images['blurred'] != null) {
+      if (mounted) {
+        setState(() {
+          _artistImage = images['original'];
+          _blurredArtistImage = images['blurred'];
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _artistImage = null;
+          _blurredArtistImage = null;
+        });
+      }
+    }
+  }
+
+  void _updateArtistImage(Color accentColor) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _fetchArtistImage(
+        widget.audioFiles[_currentIndex].artist ?? 'Unknown Artist',
+        accentColor,
+      );
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  void _fetchAlbumArt(String filePath) async {
+    final tagger = Audiotagger();
+    Tag? tag = await tagger.readTags(path: filePath);
+    if (tag != null && tag.artwork != null) {
+      if (mounted) {
+        setState(() {
+          _albumArt = tag.artwork! as Uint8List?;
+        });
+      }
+    } else {
+      if (mounted) {
+        setState(() {
+          _albumArt = null;
+        });
+      }
+    }
   }
 
   @override
@@ -381,11 +383,30 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Visualizza la prossima canzone
+                    Align(
+                      alignment: Alignment.topRight,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text(
+                            'Next song:',
+                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                          ),
+                          Text(
+                            _getNextSongTitle(),
+                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+                          ),
+                          Text(
+                            _getNextArtistName(),
+                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                          ),
+                        ],
+                      ),
+                    ),
                     GestureDetector(
-                      // Aggiungi GestureDetector per gestire le gesture di cambio traccia
                       behavior: HitTestBehavior.translucent,
                       onHorizontalDragEnd: (details) {
-                        // Determina se cambiare traccia basato sulla velocità del drag
                         if (details.primaryVelocity! < 0) {
                           _playNext();
                         } else if (details.primaryVelocity! > 0) {
@@ -456,7 +477,11 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
                           onPressed: _toggleShuffle,
                         ),
                         IconButton(
-                          icon: Icon(_loopMode == LoopMode.one ? Icons.repeat_one : (_loopMode == LoopMode.all ? Icons.repeat : Icons.repeat), color: Colors.white),
+                          icon: Icon(
+                              _loopMode == LoopMode.one
+                                  ? Icons.repeat_one
+                                  : (_loopMode == LoopMode.all ? Icons.repeat : Icons.repeat),
+                              color: Colors.white),
                           onPressed: _toggleRepeat,
                         ),
                         IconButton(
@@ -508,15 +533,14 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
                 ),
               ),
             ),
-          // Aggiungi i GestureDetector per le aree di sicurezza a sinistra e a destra
           Positioned(
             left: 0,
             child: GestureDetector(
               onTap: () => _playPrevious(),
               child: Container(
-                width: 40, // Larghezza dell'area di sicurezza
+                width: 40,
                 height: MediaQuery.of(context).size.height,
-                color: Colors.transparent, // Colore trasparente
+                color: Colors.transparent,
               ),
             ),
           ),
@@ -525,14 +549,36 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
             child: GestureDetector(
               onTap: () => _playNext(),
               child: Container(
-                width: 40, // Larghezza dell'area di sicurezza
+                width: 40,
                 height: MediaQuery.of(context).size.height,
-                color: Colors.transparent, // Colore trasparente
+                color: Colors.transparent,
               ),
             ),
           ),
         ],
       ),
     );
+  }
+
+  String _getNextSongTitle() {
+    if (_isShuffle) {
+      int nextIndex = (_currentIndex + 1) % widget.audioFiles.length;
+      return widget.audioFiles[nextIndex].title;
+    } else if (_currentIndex < widget.audioFiles.length - 1) {
+      return widget.audioFiles[_currentIndex + 1].title;
+    } else {
+      return widget.audioFiles[0].title;
+    }
+  }
+
+  String _getNextArtistName() {
+    if (_isShuffle) {
+      int nextIndex = (_currentIndex + 1) % widget.audioFiles.length;
+      return widget.audioFiles[nextIndex].artist ?? 'Unknown Artist';
+    } else if (_currentIndex < widget.audioFiles.length - 1) {
+      return widget.audioFiles[_currentIndex + 1].artist ?? 'Unknown Artist';
+    } else {
+      return widget.audioFiles[0].artist ?? 'Unknown Artist';
+    }
   }
 }

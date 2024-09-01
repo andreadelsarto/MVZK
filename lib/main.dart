@@ -5,6 +5,7 @@ import 'package:mzvk/screens/splash_screen.dart';
 import 'package:mzvk/screens/home_screen.dart';
 import 'package:mzvk/screens/theme_provider.dart';
 import 'package:provider/provider.dart';
+import 'screens/sound_settings_provider.dart'; // Importa il nuovo provider
 
 void main() {
   runApp(const MyApp());
@@ -15,10 +16,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => ThemeProvider(),
-      child: Consumer<ThemeProvider>(
-        builder: (context, themeProvider, child) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => ThemeProvider()),
+        ChangeNotifierProvider(create: (context) => SoundSettingsProvider()), // Aggiungi SoundSettingsProvider
+      ],
+      child: Consumer2<ThemeProvider, SoundSettingsProvider>(
+        builder: (context, themeProvider, soundSettingsProvider, child) {
           return MaterialApp(
             title: 'MVZK',
             themeMode: themeProvider.themeMode,

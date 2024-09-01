@@ -16,7 +16,7 @@ class ThemeSettingsScreen extends StatelessWidget {
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
         title: Text(
-          'Theme Settings',
+          'theme settings', // Testo tutto in minuscolo
           style: TextStyle(
             color: theme.colorScheme.onBackground,
           ),
@@ -28,22 +28,22 @@ class ThemeSettingsScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Choose Theme',
+              'choose theme', // Testo tutto in minuscolo
               style: theme.textTheme.headlineMedium?.copyWith(
                 color: theme.colorScheme.onBackground,
-                fontSize: 24,
+                fontSize: 50, // Uniforma la dimensione del carattere a quella della home screen
               ),
             ),
             const SizedBox(height: 16),
-            _buildThemeOption(context, 'Light', ThemeMode.light, themeProvider),
-            _buildThemeOption(context, 'Dark', ThemeMode.dark, themeProvider),
-            _buildThemeOption(context, 'System', ThemeMode.system, themeProvider),
+            _buildThemeOption(context, 'light', ThemeMode.light, themeProvider),
+            _buildThemeOption(context, 'dark', ThemeMode.dark, themeProvider),
+            _buildThemeOption(context, 'system', ThemeMode.system, themeProvider),
             const Divider(height: 40),
             Text(
-              'Accent Color',
+              'accent color', // Testo tutto in minuscolo
               style: theme.textTheme.headlineMedium?.copyWith(
                 color: theme.colorScheme.onBackground,
-                fontSize: 24,
+                fontSize: 50, // Uniforma la dimensione del carattere a quella della home screen
               ),
             ),
             const SizedBox(height: 16),
@@ -55,11 +55,13 @@ class ThemeSettingsScreen extends StatelessWidget {
   }
 
   Widget _buildThemeOption(BuildContext context, String title, ThemeMode themeMode, ThemeProvider themeProvider) {
+    final theme = Theme.of(context);
     return RadioListTile<ThemeMode>(
       title: Text(
-        title,
-        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-          color: Theme.of(context).colorScheme.onBackground,
+        title.toLowerCase(), // Assicura che il testo sia tutto in minuscolo
+        style: theme.textTheme.bodyLarge?.copyWith(
+          color: theme.colorScheme.onBackground,
+          fontSize: 30, // Dimensione del testo uniformata
         ),
       ),
       value: themeMode,
@@ -88,9 +90,10 @@ class ThemeSettingsScreen extends StatelessWidget {
       children: [
         RadioListTile<bool>(
           title: Text(
-            'System',
+            'system', // Testo tutto in minuscolo
             style: Theme.of(context).textTheme.bodyLarge?.copyWith(
               color: Theme.of(context).colorScheme.onBackground,
+              fontSize: 30, // Dimensione del testo uniformata
             ),
           ),
           value: true,
@@ -101,6 +104,7 @@ class ThemeSettingsScreen extends StatelessWidget {
             }
           },
         ),
+        const SizedBox(height: 16), // Aggiungi uno spazio per separare le opzioni
         Wrap(
           spacing: 10.0,
           runSpacing: 10.0,
