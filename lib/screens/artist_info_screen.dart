@@ -31,7 +31,7 @@ class _ArtistInfoScreenState extends State<ArtistInfoScreen> {
       if (pages.isNotEmpty) {
         final page = pages.values.first;
         setState(() {
-          _artistInfo = page['extract'];
+          _artistInfo = _cleanHtmlTags(page['extract']);
           _wikipediaUrl = 'https://en.wikipedia.org/wiki/${widget.artistName.replaceAll(' ', '_')}';
         });
       }
@@ -40,6 +40,16 @@ class _ArtistInfoScreenState extends State<ArtistInfoScreen> {
         _artistInfo = 'Failed to load artist info.';
       });
     }
+  }
+
+  String _cleanHtmlTags(String htmlText) {
+    // Sostituisce i tag </p> con due ritorni a capo
+    String text = htmlText.replaceAll('</p>', '\n\n');
+
+    // Rimuove tutti gli altri tag HTML rimanenti
+    text = text.replaceAll(RegExp(r'<[^>]*>'), ' ');
+
+    return text;
   }
 
   @override
@@ -61,9 +71,14 @@ class _ArtistInfoScreenState extends State<ArtistInfoScreen> {
               ),
               const SizedBox(height: 20),
               if (_wikipediaUrl != null)
-                const Text(
-                  'Source: Wikipedia',
-                  style: TextStyle(fontSize: 14, color: Colors.blue),
+                GestureDetector(
+                  onTap: () {
+                    // Logica per aprire il link di Wikipedia
+                  },
+                  child: const Text(
+                    'Source: Wikipedia',
+                    style: TextStyle(fontSize: 14, color: Colors.blue, decoration: TextDecoration.underline),
+                  ),
                 ),
             ],
           ),
