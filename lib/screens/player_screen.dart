@@ -26,7 +26,7 @@ class PlayerScreen extends StatefulWidget {
   _PlayerScreenState createState() => _PlayerScreenState();
 }
 
-class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderStateMixin {
+class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMixin {
   late int _currentIndex;
   double _volume = 0.5;
   bool _isPlaying = false;
@@ -38,8 +38,10 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
   Duration _currentPosition = Duration.zero;
   Duration _totalDuration = Duration.zero;
   late AnimationController _animationController;
+  late AnimationController _textAnimationController;
   late Animation<Offset> _slideAnimation;
   late Animation<double> _fadeAnimation;
+  late Animation<Offset> _textSlideAnimation;
   bool _isMinimal = false;
   Color? _previousAccentColor;
 
@@ -53,7 +55,6 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
-    _playCurrent();
     widget.audioPlayer.setVolume(_volume);
 
     _playingSubscription = widget.audioPlayer.playingStream.listen((isPlaying) {
@@ -101,6 +102,11 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
       vsync: this,
     );
 
+    _textAnimationController = AnimationController(
+      duration: const Duration(milliseconds: 500),
+      vsync: this,
+    );
+
     _slideAnimation = Tween<Offset>(
       begin: Offset(0, 0),
       end: Offset(0, 1),
@@ -120,10 +126,32 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
         curve: Curves.easeInOut,
       ),
     );
+
+    _textSlideAnimation = Tween<Offset>(
+      begin: Offset(0, 0.1), // Entrata dal basso
+      end: Offset(0, 0), // Posizione finale
+    ).animate(
+      CurvedAnimation(
+        parent: _textAnimationController,
+        curve: Curves.easeInOut,
+      ),
+    );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Inizializzazione basata sul contesto
+    _playCurrent();  // Spostato qui per utilizzare Theme.of(context) correttamente
   }
 
   void _playNext() async {
     print('Playing next track'); // Log
+    _textAnimationController.reverse(from: 1.0); // Anima l'uscita del testo attuale
+
+    await Future.delayed(const Duration(milliseconds: 500)); // Attendi che l'animazione sia completa
+
+    // Logica per selezionare la prossima traccia
     if (_isShuffle) {
       int nextIndex;
       do {
@@ -145,11 +173,14 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     );
     widget.audioPlayer.play();
 
-    // Aggiorna le informazioni della traccia corrente
+    // Aggiorna le informazioni per la nuova traccia
     setState(() {
       _fetchAlbumArt(widget.audioFiles[_currentIndex].data);
       _updateArtistImage(Theme.of(context).colorScheme.primary);
     });
+
+    // Anima l'ingresso del nuovo testo
+    _textAnimationController.forward(from: 0.0);
   }
 
   void _togglePlayPause() {
@@ -345,6 +376,7 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
     _positionSubscription.cancel();
     _durationSubscription.cancel();
     _animationController.dispose();
+    _textAnimationController.dispose();
     super.dispose();
   }
 
@@ -386,22 +418,28 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
                     // Visualizza la prossima canzone
                     Align(
                       alignment: Alignment.topRight,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            'Next song:',
-                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                      child: SlideTransition(
+                        position: _textSlideAnimation,
+                        child: FadeTransition(
+                          opacity: _textAnimationController,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Next song:',
+                                style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                              ),
+                              Text(
+                                _getNextSongTitle(),
+                                style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+                              ),
+                              Text(
+                                _getNextArtistName(),
+                                style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
+                              ),
+                            ],
                           ),
-                          Text(
-                            _getNextSongTitle(),
-                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
-                          ),
-                          Text(
-                            _getNextArtistName(),
-                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white70),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                     GestureDetector(
@@ -413,20 +451,26 @@ class _PlayerScreenState extends State<PlayerScreen> with SingleTickerProviderSt
                           _playPrevious();
                         }
                       },
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            currentSong.title,
-                            style: theme.textTheme.headlineSmall?.copyWith(color: Colors.white),
-                            textAlign: TextAlign.left,
+                      child: SlideTransition(
+                        position: _textSlideAnimation,
+                        child: FadeTransition(
+                          opacity: _textAnimationController,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                currentSong.title,
+                                style: theme.textTheme.headlineSmall?.copyWith(color: Colors.white),
+                                textAlign: TextAlign.left,
+                              ),
+                              Text(
+                                currentSong.artist ?? 'Unknown Artist',
+                                style: theme.textTheme.titleMedium?.copyWith(color: Colors.white70),
+                                textAlign: TextAlign.left,
+                              ),
+                            ],
                           ),
-                          Text(
-                            currentSong.artist ?? 'Unknown Artist',
-                            style: theme.textTheme.titleMedium?.copyWith(color: Colors.white70),
-                            textAlign: TextAlign.left,
-                          ),
-                        ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
