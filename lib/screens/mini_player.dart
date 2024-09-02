@@ -26,11 +26,13 @@ class _MiniPlayerState extends State<MiniPlayer> {
     super.initState();
     _currentIndex = widget.audioPlayer.currentIndex ?? 0;
     _loadLastPlayedState();
+
     _positionSubscription = widget.audioPlayer.positionStream.listen((position) {
       if (mounted) {
         setState(() {});
       }
     });
+
     _playerStateSubscription = widget.audioPlayer.playerStateStream.listen((state) {
       if (mounted) {
         setState(() {
@@ -40,7 +42,7 @@ class _MiniPlayerState extends State<MiniPlayer> {
     });
 
     widget.audioPlayer.currentIndexStream.listen((index) {
-      if (index != null) {
+      if (index != null && mounted) {
         setState(() {
           _currentIndex = index;
           _saveCurrentIndex(index);
@@ -51,14 +53,19 @@ class _MiniPlayerState extends State<MiniPlayer> {
 
   Future<void> _loadLastPlayedState() async {
     final prefs = await SharedPreferences.getInstance();
-    setState(() {
-      _currentIndex = prefs.getInt('lastPlayedIndex') ?? 0;
-    });
+    final lastPlayedIndex = prefs.getInt('lastPlayedIndex') ?? 0;
+
+    // Controlla se l'indice salvato è valido
+    if (lastPlayedIndex >= 0 && lastPlayedIndex < widget.audioFiles.length) {
+      setState(() {
+        _currentIndex = lastPlayedIndex;
+      });
+    }
   }
 
   Future<void> _saveCurrentIndex(int index) async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.setInt('lastPlayedIndex', index);
+    await prefs.setInt('lastPlayedIndex', index);
   }
 
   void _togglePlayPause() {
@@ -78,13 +85,16 @@ class _MiniPlayerState extends State<MiniPlayer> {
 
   @override
   Widget build(BuildContext context) {
+    if (_currentIndex >= widget.audioFiles.length) return SizedBox.shrink(); // Verifica dell'indice fuori limite
+
+    final theme = Theme.of(context); // Usa il tema corrente
     final currentSong = widget.audioFiles[_currentIndex];
     final position = widget.audioPlayer.position;
     final duration = widget.audioPlayer.duration ?? Duration.zero;
 
     double progress = 0.0;
-    if (duration.inSeconds > 0) {
-      progress = position.inSeconds / duration.inSeconds;
+    if (duration.inMilliseconds > 0) {
+      progress = position.inMilliseconds / duration.inMilliseconds;
     }
 
     return GestureDetector(
@@ -101,11 +111,12 @@ class _MiniPlayerState extends State<MiniPlayer> {
         );
       },
       child: Container(
-        color: Colors.black54,
+        color: theme.colorScheme.primary.withOpacity(0.8), // Utilizza il colore primario del tema con opacità
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: Row(
           children: [
             IconButton(
-              icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white),
+              icon: Icon(_isPlaying ? Icons.pause : Icons.play_arrow, color: theme.colorScheme.onPrimary),
               onPressed: _togglePlayPause,
             ),
             Expanded(
@@ -116,13 +127,17 @@ class _MiniPlayerState extends State<MiniPlayer> {
                     currentSong.title.length > 20
                         ? '${currentSong.title.substring(0, 20)}...'
                         : currentSong.title,
-                    style: const TextStyle(color: Colors.white),
+                    style: theme.textTheme.bodyLarge?.copyWith(color: theme.colorScheme.onPrimary),
                   ),
-                  Text(currentSong.artist ?? 'Unknown Artist', style: const TextStyle(color: Colors.white)),
+                  Text(
+                    currentSong.artist ?? 'Unknown Artist',
+                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onPrimary),
+                  ),
+                  const SizedBox(height: 4),
                   LinearProgressIndicator(
                     value: progress.isNaN ? 0.0 : progress,
-                    backgroundColor: Colors.white24,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                    backgroundColor: theme.colorScheme.onPrimary.withOpacity(0.3),
+                    valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.onPrimary),
                   ),
                 ],
               ),
@@ -131,10 +146,8 @@ class _MiniPlayerState extends State<MiniPlayer> {
               icon: const Icon(Icons.skip_next, color: Colors.white),
               onPressed: () {
                 if (_currentIndex < widget.audioFiles.length - 1) {
-                  setState(() {
-                    _currentIndex++;
-                  });
-                  widget.audioPlayer.seek(Duration.zero, index: _currentIndex);
+                  final nextIndex = _currentIndex + 1;
+                  widget.audioPlayer.seek(Duration.zero, index: nextIndex);
                 }
               },
             ),
