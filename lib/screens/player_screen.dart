@@ -45,6 +45,8 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
   bool _isMinimal = false;
   Color? _previousAccentColor;
   double _backgroundOpacity = 1.0; // Variabile di stato per gestire l'opacità dello sfondo
+  double _dragValue = 0.0; // Variabile per il valore corrente del trascinamento dello slider
+  bool _isDragging = false; // Variabile per indicare se si sta trascinando lo slider
 
   late StreamSubscription<bool> _playingSubscription;
   late StreamSubscription<bool> _shuffleSubscription;
@@ -58,7 +60,6 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
     _currentIndex = widget.initialIndex;
     widget.audioPlayer.setVolume(_volume);
 
-    // Aggiungi questo per assicurarti che l'animazione di testo sia impostata correttamente all'avvio
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _textAnimationController.forward(from: 0.0);
     });
@@ -246,14 +247,34 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
                 leading: Icon(Icons.album),
                 title: Text('Visualizza album'),
                 onTap: () {
-                  // Gestisci la visualizzazione dell'album
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SongListScreen(
+                        claim: 'album',
+                        audioPlayer: widget.audioPlayer,
+                        blurredBackgroundImage: _blurredArtistImage,
+                      ),
+                    ),
+                  );
                 },
               ),
               ListTile(
                 leading: Icon(Icons.person),
                 title: Text('Visualizza artista'),
                 onTap: () {
-                  // Gestisci la visualizzazione dell'artista
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => SongListScreen(
+                        claim: 'artist',
+                        audioPlayer: widget.audioPlayer,
+                        blurredBackgroundImage: _blurredArtistImage,
+                      ),
+                    ),
+                  );
                 },
               ),
               ListTile(
@@ -409,7 +430,7 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
             Positioned.fill(
               child: AnimatedOpacity(
                 opacity: _backgroundOpacity,
-                duration: Duration(milliseconds: 300), // Durata per il fade-in/fade-out
+                duration: Duration(milliseconds: 300),
                 child: Image.memory(
                   _blurredArtistImage!,
                   fit: BoxFit.cover,
@@ -484,17 +505,49 @@ class _PlayerScreenState extends State<PlayerScreen> with TickerProviderStateMix
                       ),
                     ),
                     const SizedBox(height: 20),
-                    Slider(
-                      activeColor: Colors.white,
-                      inactiveColor: Colors.white38,
-                      value: _currentPosition.inSeconds.toDouble(),
-                      min: 0.0,
-                      max: _totalDuration.inSeconds.toDouble(),
-                      onChanged: (value) {
-                        setState(() {
-                          widget.audioPlayer.seek(Duration(seconds: value.toInt()));
-                        });
-                      },
+                    Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        Slider(
+                          activeColor: Colors.white,
+                          inactiveColor: Colors.white38,
+                          value: _isDragging ? _dragValue : _currentPosition.inSeconds.toDouble(),
+                          min: 0.0,
+                          max: _totalDuration.inSeconds.toDouble(),
+                          onChanged: (value) {
+                            setState(() {
+                              _dragValue = value;
+                              _isDragging = true;
+                            });
+                          },
+                          onChangeEnd: (value) {
+                            setState(() {
+                              widget.audioPlayer.seek(Duration(seconds: value.toInt()));
+                              _isDragging = false;
+                            });
+                          },
+                        ),
+                        if (_isDragging)
+                          Positioned(
+                            bottom: 50, // Alza il popup sopra lo slider
+                            left: (_dragValue / _totalDuration.inSeconds) *
+                                (MediaQuery.of(context).size.width - 60), // Posizionamento dinamico
+                            child: Material(
+                              color: Colors.transparent,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10.0, vertical: 5.0),
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.primary.withOpacity(0.9),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: Text(
+                                  _formatDuration(Duration(seconds: _dragValue.toInt())),
+                                  style: theme.textTheme.bodyMedium?.copyWith(color: Colors.white),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 24.0),

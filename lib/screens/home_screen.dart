@@ -4,6 +4,8 @@ import 'package:just_audio/just_audio.dart';
 import 'game_screen.dart';  // Importa la nuova schermata
 import 'SettingsScreen.dart';
 import 'radio_selection_screen.dart';
+import 'MarketPlace.dart';
+import 'social.dart';
 
 class HomeScreen extends StatelessWidget {
   final AudioPlayer audioPlayer;
@@ -36,7 +38,14 @@ class HomeScreen extends StatelessWidget {
               }),
               _buildMenuItem(context, 'videos', Icons.videocam, () {}),
               _buildMenuItem(context, 'pictures', Icons.photo, () {}),
-              _buildMenuItem(context, 'social', Icons.people, () {}),
+              _buildMenuItem(context, 'social', Icons.people, () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const SocialScreen(),
+                  ),
+                );
+              }),
               _buildMenuItem(context, 'radio', Icons.radio, () {
                 Navigator.push(
                   context,
@@ -45,7 +54,14 @@ class HomeScreen extends StatelessWidget {
                   ),
                 );
               }),
-              _buildMenuItem(context, 'marketplace', Icons.store, () {}),
+              _buildMenuItem(context, 'marketplace', Icons.store, () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const MarketplaceScreen(),
+                  ),
+                );
+              }),
               _buildMenuItem(context, 'games', Icons.games, () {
                 Navigator.of(context).push(_createRoute());
               }),
